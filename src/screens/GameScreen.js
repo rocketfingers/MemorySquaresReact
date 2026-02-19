@@ -1,14 +1,263 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import {
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  Animated,
+  ScrollView,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../theme/ThemeContext';
+import { useGameBoard } from '../hooks/useGameBoard';
+import { useTimer } from '../hooks/useTimer';
+import { useAuth } from '../hooks/useAuth';
+import { useHistory } from '../hooks/useHistory';
+import { useGameStatusStore } from '../stores/gameStatusStore';
+import { timeConstants, typeOfLost } from '../constants/gameConstants';
+import { gameResults } from '../constants/gameResult';
+import StatusBox from '../components/StatusBox';
+import ResultsBox from '../components/ResultsBox';
+import GameWonDialog from '../components/GameWonDialog';
+import GameLostDialog from '../components/GameLostDialog';
 
-export default function GameScreen() {
+const SCREEN_SIZE = Math.min(Dimensions.get('window').width, Dimensions.get('window').height);
+// Board occupies 85% of the smaller screen dimension
+const BOARD_SIZE = SCREEN_SIZE * 0.85;
+
+// Margin between squares, keyed by column count
+const SQUARE_MARGIN = { 3: 8, 4: 7, 5: 5, 6: 4 };
+
+export default function GameScreen({ navigation }) {
+  const { colors } = useTheme();
+  const { user } = useAuth();
+  const { history, addGameToHistory } = useHistory(user);
+
+  const currentRound = useGameStatusStore((s) => s.currentRound);
+  const setCurrentRound = useGameStatusStore((s) => s.setCurrentRound);
+  const gameInProgress = useGameStatusStore((s) => s.gameInProgress);
+  const setGameInProgress = useGameStatusStore((s) => s.setGameInProgress);
+  const isBoardShown = useGameStatusStore((s) => s.isBoardShown);
+  const setIsBoardShown = useGameStatusStore((s) => s.setIsBoardShown);
+  const currentGameTime = useGameStatusStore((s) => s.currentGameTime);
+  const setCurrentGameTime = useGameStatusStore((s) => s.setCurrentGameTime);
+  const totalGameTime = useGameStatusStore((s) => s.totalGameTime);
+  const setTotalGameTime = useGameStatusStore((s) => s.setTotalGameTime);
+  const anyGameEverStarted = useGameStatusStore((s) => s.gameInProgress || s.currentRound > 1);
+
+  const {
+    columns,
+    rectangles,
+    itemsNotClickable,
+    countOfValid,
+    countOfValidClicked,
+    shouldRotate,
+    resetBoard,
+    boardResultsShowOrHide,
+    handleItemClick,
+  } = useGameBoard();
+
+  const [lostDialog, setLostDialog] = useState(false);
+  const [wonDialog, setWonDialog] = useState(false);
+  const [typeLost, setTypeLost] = useState(null);
+  const [isBoardRotated, setIsBoardRotated] = useState(false);
+
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const previewTimerRef = useRef(null);
+
+  // Animate board rotation
+  useEffect(() => {
+    Animated.timing(rotateAnim, {
+      toValue: isBoardRotated ? 1 : 0,
+      duration: 1000,
+      useNativeDriver: true,
+    }).start();
+  }, [isBoardRotated]);
+
+  const boardRotation = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '90deg'],
+  });
+
+  // Increment game time each second
+  const handleTick = useCallback(() => {
+    setCurrentGameTime(currentGameTime + 1);
+    setTotalGameTime(totalGameTime + 1);
+  }, [currentGameTime, totalGameTime]);
+
+  // Timeout handler
+  const handleTimeout = useCallback(async () => {
+    if (!isBoardShown || !gameInProgress) return;
+    setGameInProgress(false);
+    await addGameToHistory(currentRound, currentGameTime, totalGameTime, gameResults.LOSE);
+    setTypeLost(typeOfLost.TIME_OUT);
+    setLostDialog(true);
+  }, [isBoardShown, gameInProgress, currentRound, currentGameTime, totalGameTime]);
+
+  useTimer(gameInProgress, currentGameTime, handleTick, handleTimeout);
+
+  const startGame = useCallback(() => {
+    setTypeLost(null);
+    setIsBoardRotated(false);
+    setIsBoardShown(true);
+    setCurrentGameTime(0);
+    resetBoard(currentRound);
+
+    // Show preview then hide after PREVIEW_DURATION
+    boardResultsShowOrHide(true, null);
+
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    previewTimerRef.current = setTimeout(() => {
+      // onPlayStart: mark game as in-progress
+      boardResultsShowOrHide(false, () => {
+        setGameInProgress(true);
+      });
+      // Apply rotation if this level needs it
+      if (shouldRotate(currentRound)) {
+        setIsBoardRotated(true);
+      }
+    }, timeConstants.PREVIEW_DURATION);
+  }, [currentRound, resetBoard, boardResultsShowOrHide, shouldRotate]);
+
+  // Start game on mount
+  useEffect(() => {
+    startGame();
+    return () => {
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    };
+  }, []);
+
+  const handleSquareTap = useCallback(async (id) => {
+    const result = handleItemClick(id);
+    if (!result) return;
+
+    setGameInProgress(false);
+
+    if (result.lost) {
+      await addGameToHistory(currentRound, currentGameTime, totalGameTime, gameResults.LOSE);
+      setTypeLost(typeOfLost.WRONG_CLICKED);
+      setLostDialog(true);
+    } else if (result.won) {
+      await addGameToHistory(currentRound, currentGameTime, totalGameTime, gameResults.WIN);
+      setWonDialog(true);
+    }
+  }, [handleItemClick, currentRound, currentGameTime, totalGameTime, addGameToHistory]);
+
+  const handleNextLevel = () => {
+    setWonDialog(false);
+    const nextRound = currentRound + 1;
+    setCurrentRound(nextRound);
+    setTimeout(() => startGame(), 50);
+  };
+
+  const handleRestart = () => {
+    setWonDialog(false);
+    setLostDialog(false);
+    setTimeout(() => startGame(), 50);
+  };
+
+  const handleGoToMenu = () => {
+    setWonDialog(false);
+    setLostDialog(false);
+    setIsBoardShown(false);
+    navigation.navigate('Home');
+  };
+
+  // Compute square size from board size, column count, and margins
+  const margin = SQUARE_MARGIN[columns] ?? 4;
+  const squareSize = (BOARD_SIZE - margin * 2 * columns) / columns;
+
+  const getSquareColor = (item) => {
+    if (item.isClicked && item.isValid) return colors.squareCorrect;
+    if (item.isClicked && !item.isValid) return colors.squareWrong;
+    return colors.squareDefault;
+  };
+
   return (
-    <View style={styles.container}>
-      <Text>Game</Text>
+    <View style={[styles.screen, { backgroundColor: colors.gradientStart }]}>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Results box (stats) */}
+          <ResultsBox history={history} visible={anyGameEverStarted} />
+
+          {/* Game board */}
+          <Animated.View
+            style={[
+              styles.board,
+              {
+                width: BOARD_SIZE,
+                height: BOARD_SIZE,
+                backgroundColor: colors.boardBackground,
+                transform: [{ rotate: boardRotation }],
+              },
+            ]}
+          >
+            {rectangles.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                activeOpacity={itemsNotClickable ? 1 : 0.7}
+                onPress={() => handleSquareTap(item.id)}
+                style={[
+                  styles.square,
+                  {
+                    width: squareSize,
+                    height: squareSize,
+                    margin,
+                    backgroundColor: getSquareColor(item),
+                  },
+                ]}
+              />
+            ))}
+          </Animated.View>
+
+          {/* Status box */}
+          <StatusBox
+            round={currentRound}
+            currentTime={currentGameTime}
+            totalTime={totalGameTime}
+            solved={countOfValidClicked}
+            total={countOfValid}
+            visible={anyGameEverStarted}
+          />
+        </ScrollView>
+      </SafeAreaView>
+
+      <GameLostDialog
+        visible={lostDialog}
+        reason={typeLost}
+        onRestart={handleRestart}
+        onGoToMenu={handleGoToMenu}
+      />
+      <GameWonDialog
+        visible={wonDialog}
+        columns={columns}
+        onNextLevel={handleNextLevel}
+        onRestart={handleRestart}
+        onGoToMenu={handleGoToMenu}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  screen: { flex: 1 },
+  safeArea: { flex: 1 },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+    gap: 20,
+  },
+  board: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignContent: 'center',
+    justifyContent: 'center',
+    borderRadius: 4,
+  },
+  square: {
+    borderRadius: 4,
+  },
 });
