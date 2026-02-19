@@ -174,48 +174,52 @@ export default function GameScreen({ navigation }) {
     return colors.squareDefault;
   };
 
-  const isWide = width > 900;
+  // Phone: stack vertically (ResultsBox above board, StatusBox below)
+  // Tablet/desktop: ResultsBox left, board centre, StatusBox right
+  const isWide = width >= 700;
+
+  const board = (
+    <Animated.View
+      style={[
+        styles.board,
+        {
+          width: BOARD_SIZE,
+          height: BOARD_SIZE,
+          backgroundColor: colors.boardBackground,
+          transform: [{ rotate: boardRotation }],
+        },
+      ]}
+    >
+      {rectangles.map((item) => (
+        <TouchableOpacity
+          key={item.id}
+          activeOpacity={itemsNotClickable ? 1 : 0.7}
+          onPress={() => handleSquareTap(item.id)}
+          style={[
+            styles.square,
+            {
+              width: squareSize,
+              height: squareSize,
+              margin,
+              backgroundColor: getSquareColor(item),
+            },
+          ]}
+        />
+      ))}
+    </Animated.View>
+  );
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.gradientStart }]}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {isWide ? (
-            /* Wide layout: panels on sides, board in centre */
+            /* Tablet/desktop: ResultsBox | board | StatusBox */
             <View style={styles.wideRow}>
               <View style={styles.sidePanel}>
                 <ResultsBox history={history} visible={anyGameEverStarted} />
               </View>
-
-              <Animated.View
-                style={[
-                  styles.board,
-                  {
-                    width: BOARD_SIZE,
-                    height: BOARD_SIZE,
-                    backgroundColor: colors.boardBackground,
-                    transform: [{ rotate: boardRotation }],
-                  },
-                ]}
-              >
-                {rectangles.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    activeOpacity={itemsNotClickable ? 1 : 0.7}
-                    onPress={() => handleSquareTap(item.id)}
-                    style={[
-                      styles.square,
-                      {
-                        width: squareSize,
-                        height: squareSize,
-                        margin,
-                        backgroundColor: getSquareColor(item),
-                      },
-                    ]}
-                  />
-                ))}
-              </Animated.View>
-
+              {board}
               <View style={styles.sidePanel}>
                 <StatusBox
                   round={currentRound}
@@ -228,52 +232,18 @@ export default function GameScreen({ navigation }) {
               </View>
             </View>
           ) : (
-            /* Narrow layout: board on top, panels below in a row */
+            /* Phone: ResultsBox / board / StatusBox stacked */
             <View style={styles.narrowCol}>
-              <Animated.View
-                style={[
-                  styles.board,
-                  {
-                    width: BOARD_SIZE,
-                    height: BOARD_SIZE,
-                    backgroundColor: colors.boardBackground,
-                    transform: [{ rotate: boardRotation }],
-                  },
-                ]}
-              >
-                {rectangles.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    activeOpacity={itemsNotClickable ? 1 : 0.7}
-                    onPress={() => handleSquareTap(item.id)}
-                    style={[
-                      styles.square,
-                      {
-                        width: squareSize,
-                        height: squareSize,
-                        margin,
-                        backgroundColor: getSquareColor(item),
-                      },
-                    ]}
-                  />
-                ))}
-              </Animated.View>
-
-              <View style={styles.belowRow}>
-                <View style={styles.belowPanel}>
-                  <ResultsBox history={history} visible={anyGameEverStarted} />
-                </View>
-                <View style={styles.belowPanel}>
-                  <StatusBox
-                    round={currentRound}
-                    currentTime={currentGameTime}
-                    totalTime={totalGameTime}
-                    solved={countOfValidClicked}
-                    total={countOfValid}
-                    visible={anyGameEverStarted}
-                  />
-                </View>
-              </View>
+              <ResultsBox history={history} visible={anyGameEverStarted} />
+              {board}
+              <StatusBox
+                round={currentRound}
+                currentTime={currentGameTime}
+                totalTime={totalGameTime}
+                solved={countOfValidClicked}
+                total={countOfValid}
+                visible={anyGameEverStarted}
+              />
             </View>
           )}
         </ScrollView>
@@ -305,10 +275,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 16,
   },
-  // Wide layout
+  // Tablet/desktop layout: side by side
   wideRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'center',
     gap: 24,
     width: '100%',
@@ -317,19 +287,11 @@ const styles = StyleSheet.create({
     flex: 1,
     maxWidth: 260,
   },
-  // Narrow layout
+  // Phone layout: stacked vertically
   narrowCol: {
     alignItems: 'center',
     gap: 16,
     width: '100%',
-  },
-  belowRow: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  belowPanel: {
-    flex: 1,
   },
   board: {
     flexDirection: 'row',
