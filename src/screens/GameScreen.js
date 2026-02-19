@@ -174,54 +174,108 @@ export default function GameScreen({ navigation }) {
     return colors.squareDefault;
   };
 
+  const isWide = width > 900;
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.gradientStart }]}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.inner}>
-            {/* Results box (stats) */}
-            <ResultsBox history={history} visible={anyGameEverStarted} />
+          {isWide ? (
+            /* Wide layout: panels on sides, board in centre */
+            <View style={styles.wideRow}>
+              <View style={styles.sidePanel}>
+                <ResultsBox history={history} visible={anyGameEverStarted} />
+              </View>
 
-            {/* Game board */}
-            <Animated.View
-              style={[
-                styles.board,
-                {
-                  width: BOARD_SIZE,
-                  height: BOARD_SIZE,
-                  backgroundColor: colors.boardBackground,
-                  transform: [{ rotate: boardRotation }],
-                },
-              ]}
-            >
-              {rectangles.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  activeOpacity={itemsNotClickable ? 1 : 0.7}
-                  onPress={() => handleSquareTap(item.id)}
-                  style={[
-                    styles.square,
-                    {
-                      width: squareSize,
-                      height: squareSize,
-                      margin,
-                      backgroundColor: getSquareColor(item),
-                    },
-                  ]}
+              <Animated.View
+                style={[
+                  styles.board,
+                  {
+                    width: BOARD_SIZE,
+                    height: BOARD_SIZE,
+                    backgroundColor: colors.boardBackground,
+                    transform: [{ rotate: boardRotation }],
+                  },
+                ]}
+              >
+                {rectangles.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    activeOpacity={itemsNotClickable ? 1 : 0.7}
+                    onPress={() => handleSquareTap(item.id)}
+                    style={[
+                      styles.square,
+                      {
+                        width: squareSize,
+                        height: squareSize,
+                        margin,
+                        backgroundColor: getSquareColor(item),
+                      },
+                    ]}
+                  />
+                ))}
+              </Animated.View>
+
+              <View style={styles.sidePanel}>
+                <StatusBox
+                  round={currentRound}
+                  currentTime={currentGameTime}
+                  totalTime={totalGameTime}
+                  solved={countOfValidClicked}
+                  total={countOfValid}
+                  visible={anyGameEverStarted}
                 />
-              ))}
-            </Animated.View>
+              </View>
+            </View>
+          ) : (
+            /* Narrow layout: board on top, panels below in a row */
+            <View style={styles.narrowCol}>
+              <Animated.View
+                style={[
+                  styles.board,
+                  {
+                    width: BOARD_SIZE,
+                    height: BOARD_SIZE,
+                    backgroundColor: colors.boardBackground,
+                    transform: [{ rotate: boardRotation }],
+                  },
+                ]}
+              >
+                {rectangles.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    activeOpacity={itemsNotClickable ? 1 : 0.7}
+                    onPress={() => handleSquareTap(item.id)}
+                    style={[
+                      styles.square,
+                      {
+                        width: squareSize,
+                        height: squareSize,
+                        margin,
+                        backgroundColor: getSquareColor(item),
+                      },
+                    ]}
+                  />
+                ))}
+              </Animated.View>
 
-            {/* Status box */}
-            <StatusBox
-              round={currentRound}
-              currentTime={currentGameTime}
-              totalTime={totalGameTime}
-              solved={countOfValidClicked}
-              total={countOfValid}
-              visible={anyGameEverStarted}
-            />
-          </View>
+              <View style={styles.belowRow}>
+                <View style={styles.belowPanel}>
+                  <ResultsBox history={history} visible={anyGameEverStarted} />
+                </View>
+                <View style={styles.belowPanel}>
+                  <StatusBox
+                    round={currentRound}
+                    currentTime={currentGameTime}
+                    totalTime={totalGameTime}
+                    solved={countOfValidClicked}
+                    total={countOfValid}
+                    visible={anyGameEverStarted}
+                  />
+                </View>
+              </View>
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
 
@@ -249,14 +303,33 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 24,
+    padding: 16,
   },
-  inner: {
+  // Wide layout
+  wideRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    gap: 24,
     width: '100%',
-    maxWidth: 560,
+  },
+  sidePanel: {
+    flex: 1,
+    maxWidth: 260,
+  },
+  // Narrow layout
+  narrowCol: {
     alignItems: 'center',
-    gap: 20,
-    paddingHorizontal: 16,
+    gap: 16,
+    width: '100%',
+  },
+  belowRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  belowPanel: {
+    flex: 1,
   },
   board: {
     flexDirection: 'row',
