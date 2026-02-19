@@ -6,6 +6,7 @@ import {
   Dimensions,
   Animated,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
@@ -21,17 +22,17 @@ import ResultsBox from '../components/ResultsBox';
 import GameWonDialog from '../components/GameWonDialog';
 import GameLostDialog from '../components/GameLostDialog';
 
-const SCREEN_SIZE = Math.min(Dimensions.get('window').width, Dimensions.get('window').height);
-// Board occupies 85% of the smaller screen dimension
-const BOARD_SIZE = SCREEN_SIZE * 0.85;
-
 // Margin between squares, keyed by column count
 const SQUARE_MARGIN = { 3: 8, 4: 7, 5: 5, 6: 4 };
+// Max board size in logical pixels
+const MAX_BOARD_SIZE = 480;
 
 export default function GameScreen({ navigation }) {
   const { colors } = useTheme();
   const { user } = useAuth();
   const { history, addGameToHistory } = useHistory(user);
+  const { width, height } = useWindowDimensions();
+  const BOARD_SIZE = Math.min(Math.min(width, height) * 0.85, MAX_BOARD_SIZE);
 
   const currentRound = useGameStatusStore((s) => s.currentRound);
   const setCurrentRound = useGameStatusStore((s) => s.setCurrentRound);
@@ -177,48 +178,50 @@ export default function GameScreen({ navigation }) {
     <View style={[styles.screen, { backgroundColor: colors.gradientStart }]}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Results box (stats) */}
-          <ResultsBox history={history} visible={anyGameEverStarted} />
+          <View style={styles.inner}>
+            {/* Results box (stats) */}
+            <ResultsBox history={history} visible={anyGameEverStarted} />
 
-          {/* Game board */}
-          <Animated.View
-            style={[
-              styles.board,
-              {
-                width: BOARD_SIZE,
-                height: BOARD_SIZE,
-                backgroundColor: colors.boardBackground,
-                transform: [{ rotate: boardRotation }],
-              },
-            ]}
-          >
-            {rectangles.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                activeOpacity={itemsNotClickable ? 1 : 0.7}
-                onPress={() => handleSquareTap(item.id)}
-                style={[
-                  styles.square,
-                  {
-                    width: squareSize,
-                    height: squareSize,
-                    margin,
-                    backgroundColor: getSquareColor(item),
-                  },
-                ]}
-              />
-            ))}
-          </Animated.View>
+            {/* Game board */}
+            <Animated.View
+              style={[
+                styles.board,
+                {
+                  width: BOARD_SIZE,
+                  height: BOARD_SIZE,
+                  backgroundColor: colors.boardBackground,
+                  transform: [{ rotate: boardRotation }],
+                },
+              ]}
+            >
+              {rectangles.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  activeOpacity={itemsNotClickable ? 1 : 0.7}
+                  onPress={() => handleSquareTap(item.id)}
+                  style={[
+                    styles.square,
+                    {
+                      width: squareSize,
+                      height: squareSize,
+                      margin,
+                      backgroundColor: getSquareColor(item),
+                    },
+                  ]}
+                />
+              ))}
+            </Animated.View>
 
-          {/* Status box */}
-          <StatusBox
-            round={currentRound}
-            currentTime={currentGameTime}
-            totalTime={totalGameTime}
-            solved={countOfValidClicked}
-            total={countOfValid}
-            visible={anyGameEverStarted}
-          />
+            {/* Status box */}
+            <StatusBox
+              round={currentRound}
+              currentTime={currentGameTime}
+              totalTime={totalGameTime}
+              solved={countOfValidClicked}
+              total={countOfValid}
+              visible={anyGameEverStarted}
+            />
+          </View>
         </ScrollView>
       </SafeAreaView>
 
@@ -246,9 +249,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
     paddingVertical: 24,
+  },
+  inner: {
+    width: '100%',
+    maxWidth: 560,
+    alignItems: 'center',
     gap: 20,
+    paddingHorizontal: 16,
   },
   board: {
     flexDirection: 'row',
