@@ -228,6 +228,7 @@ export default function GameScreen({ navigation }) {
                   solved={countOfValidClicked}
                   total={countOfValid}
                   visible={anyGameEverStarted}
+                  vertical
                 />
               </View>
             </View>
@@ -235,7 +236,7 @@ export default function GameScreen({ navigation }) {
             /* Phone: ResultsBox (horizontal) / board / StatusBox (vertical) */
             <View style={styles.narrowCol}>
               <ResultsBox history={history} visible={anyGameEverStarted} horizontal />
-              {board}
+              <View style={styles.boardCentered}>{board}</View>
               <StatusBox
                 round={currentRound}
                 currentTime={currentGameTime}
@@ -290,9 +291,12 @@ const styles = StyleSheet.create({
   },
   // Phone layout: stacked vertically
   narrowCol: {
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: 16,
     width: '100%',
+  },
+  boardCentered: {
+    alignItems: 'center',
   },
   board: {
     flexDirection: 'row',
