@@ -48,7 +48,7 @@ export default function GameLostDialog({ visible, reason, onRestart, onGoToMenu 
             <Text style={styles.bodyText}>
               {isTimeout
                 ? 'You ran out of time to find the squares. '
-                : 'Oops! That wasn't the right square. '}
+                : "Oops! That wasn't the right square. "}
               Give it another shot?
             </Text>
           </View>
