@@ -58,7 +58,10 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 ## Development
 
 ```bash
-npx expo start        # Start Expo dev server
-npx expo start --ios  # iOS simulator
-npx expo start --android # Android emulator
+pnpm start            # Start Expo dev server
+pnpm ios              # iOS simulator
+pnpm android          # Android emulator
+pnpm web              # Web browser
 ```
+
+> Package manager: **pnpm**. Do not use npm or yarn — `package-lock.json` is gitignored.
