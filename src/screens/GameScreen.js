@@ -232,9 +232,9 @@ export default function GameScreen({ navigation }) {
               </View>
             </View>
           ) : (
-            /* Phone: ResultsBox / board / StatusBox stacked */
+            /* Phone: ResultsBox (horizontal) / board / StatusBox (vertical) */
             <View style={styles.narrowCol}>
-              <ResultsBox history={history} visible={anyGameEverStarted} />
+              <ResultsBox history={history} visible={anyGameEverStarted} horizontal />
               {board}
               <StatusBox
                 round={currentRound}
@@ -243,6 +243,7 @@ export default function GameScreen({ navigation }) {
                 solved={countOfValidClicked}
                 total={countOfValid}
                 visible={anyGameEverStarted}
+                vertical
               />
             </View>
           )}

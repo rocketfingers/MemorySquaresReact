@@ -6,10 +6,11 @@ import { gameResults } from '../constants/gameResult';
  * Displays overall game statistics derived from history.
  *
  * Props:
- *   history  {Array}   array of game records
- *   visible  {boolean} whether any game has ever started
+ *   history     {Array}   array of game records
+ *   visible     {boolean} whether any game has ever started
+ *   horizontal  {boolean} render stats as a row of tiles (default: false = vertical rows)
  */
-export default function ResultsBox({ history, visible }) {
+export default function ResultsBox({ history, visible, horizontal = false }) {
   if (!visible) return null;
 
   const maxRound = useMemo(() => {
@@ -32,6 +33,19 @@ export default function ResultsBox({ history, visible }) {
     () => history.filter((p) => p.result === gameResults.LOSE).length,
     [history]
   );
+
+  if (horizontal) {
+    return (
+      <View style={styles.card}>
+        <View style={styles.tilesRow}>
+          <StatTile icon="🎲" label="Max Round" value={maxRound} />
+          <StatTile icon="⏱" label="Avg Time" value={`${avgTime}s`} />
+          <StatTile icon="👍" label="Wins" value={countWin} valueStyle={styles.winText} />
+          <StatTile icon="👎" label="Losses" value={countLost} valueStyle={styles.lossText} />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.card}>
@@ -62,11 +76,21 @@ function StatRow({ icon, label, value, valueStyle, iconBg }) {
   );
 }
 
+function StatTile({ icon, label, value, valueStyle }) {
+  return (
+    <View style={styles.tile}>
+      <Text style={styles.tileIcon}>{icon}</Text>
+      <Text style={styles.tileLabel}>{label}</Text>
+      <Text style={[styles.tileValue, valueStyle]}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 20,
-    padding: 16,
+    padding: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
@@ -74,12 +98,21 @@ const styles = StyleSheet.create({
   headerIcon: { fontSize: 20, marginRight: 8 },
   headerTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
+  // Vertical layout (default)
   statItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: 12, marginBottom: 8 },
   iconWrap: { width: 44, height: 44, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   statIcon: { fontSize: 22 },
   statContent: { flex: 1 },
   statLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '500', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   statValue: { color: '#fff', fontSize: 26, fontWeight: '700' },
+
+  // Horizontal layout (tile mode)
+  tilesRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
+  tile: { alignItems: 'center', flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: 8 },
+  tileIcon: { fontSize: 16, marginBottom: 2 },
+  tileLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '500', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  tileValue: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
   winText: { color: '#4caf50' },
   lossText: { color: '#f44336' },
 });

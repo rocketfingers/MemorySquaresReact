@@ -12,14 +12,30 @@ import { timeConstants } from '../constants/gameConstants';
  *   solved       {number}  valid squares clicked so far
  *   total        {number}  total valid squares to click
  *   visible      {boolean} whether any game has ever started
+ *   vertical     {boolean} render stats as stacked rows (default: false = horizontal tiles)
  */
-export default function StatusBox({ round, currentTime, totalTime, solved, total, visible }) {
+export default function StatusBox({ round, currentTime, totalTime, solved, total, visible, vertical = false }) {
   if (!visible) return null;
 
   const timeIsRed = currentTime >= timeConstants.MAX_ALLOWED_TIME * 0.8;
   const pct = total > 0 ? Math.round((solved / total) * 100) : 0;
 
-  // Build a simple arc-like progress indicator using text
+  if (vertical) {
+    return (
+      <View style={styles.card}>
+        <View style={styles.header}>
+          <Text style={styles.headerIcon}>🏁</Text>
+          <Text style={styles.headerTitle}>Current Game</Text>
+        </View>
+
+        <StatRow icon="⏱" label="Round Time" value={`${currentTime}/${timeConstants.MAX_ALLOWED_TIME}s`} valueStyle={timeIsRed && styles.valueRed} />
+        <StatRow icon="📊" label="Progress" value={`${pct}%`} />
+        <StatRow icon="🎲" label="Round" value={round} />
+        <StatRow icon="🕐" label="Total Time" value={`${totalTime}s`} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.card}>
       <View style={styles.header}>
@@ -64,6 +80,20 @@ export default function StatusBox({ round, currentTime, totalTime, solved, total
   );
 }
 
+function StatRow({ icon, label, value, valueStyle }) {
+  return (
+    <View style={styles.statItem}>
+      <View style={styles.iconWrap}>
+        <Text style={styles.statIcon}>{icon}</Text>
+      </View>
+      <View style={styles.statContent}>
+        <Text style={styles.statLabel}>{label}</Text>
+        <Text style={[styles.statValue, valueStyle]}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: 'rgba(255,255,255,0.15)',
@@ -76,6 +106,7 @@ const styles = StyleSheet.create({
   headerIcon: { fontSize: 20, marginRight: 8 },
   headerTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
+  // Horizontal layout (default)
   row: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 },
   tile: { alignItems: 'center', flex: 1, minWidth: 60, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: 8 },
   tileIcon: { fontSize: 18, marginBottom: 2 },
@@ -90,4 +121,12 @@ const styles = StyleSheet.create({
 
   roundTile: { alignItems: 'center', flex: 1, minWidth: 60, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, padding: 8 },
   roundValue: { color: '#fff', fontSize: 24, fontWeight: '700' },
+
+  // Vertical layout (stacked rows)
+  statItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: 12, marginBottom: 8 },
+  iconWrap: { width: 44, height: 44, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  statIcon: { fontSize: 22 },
+  statContent: { flex: 1 },
+  statLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '500', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  statValue: { color: '#fff', fontSize: 26, fontWeight: '700' },
 });
