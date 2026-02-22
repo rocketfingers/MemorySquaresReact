@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
   TouchableOpacity,
@@ -7,20 +7,20 @@ import {
   Animated,
   ScrollView,
   useWindowDimensions,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../theme/ThemeContext';
-import { useGameBoard } from '../hooks/useGameBoard';
-import { useTimer } from '../hooks/useTimer';
-import { useAuth } from '../hooks/useAuth';
-import { useHistory } from '../hooks/useHistory';
-import { useGameStatusStore } from '../stores/gameStatusStore';
-import { timeConstants, typeOfLost } from '../constants/gameConstants';
-import { gameResults } from '../constants/gameResult';
-import StatusBox from '../components/StatusBox';
-import ResultsBox from '../components/ResultsBox';
-import GameWonDialog from '../components/GameWonDialog';
-import GameLostDialog from '../components/GameLostDialog';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "../theme/ThemeContext";
+import { useGameBoard } from "../hooks/useGameBoard";
+import { useTimer } from "../hooks/useTimer";
+import { useAuth } from "../hooks/useAuth";
+import { useHistory } from "../hooks/useHistory";
+import { useGameStatusStore } from "../stores/gameStatusStore";
+import { timeConstants, typeOfLost } from "../constants/gameConstants";
+import { gameResults } from "../constants/gameResult";
+import StatusBox from "../components/StatusBox";
+import ResultsBox from "../components/ResultsBox";
+import GameWonDialog from "../components/GameWonDialog";
+import GameLostDialog from "../components/GameLostDialog";
 
 // Margin between squares, keyed by column count
 const SQUARE_MARGIN = { 3: 8, 4: 7, 5: 5, 6: 4 };
@@ -44,7 +44,9 @@ export default function GameScreen({ navigation }) {
   const setCurrentGameTime = useGameStatusStore((s) => s.setCurrentGameTime);
   const totalGameTime = useGameStatusStore((s) => s.totalGameTime);
   const setTotalGameTime = useGameStatusStore((s) => s.setTotalGameTime);
-  const anyGameEverStarted = useGameStatusStore((s) => s.gameInProgress || s.currentRound > 1);
+  const anyGameEverStarted = useGameStatusStore(
+    (s) => s.gameInProgress || s.currentRound > 1,
+  );
 
   const {
     columns,
@@ -77,7 +79,7 @@ export default function GameScreen({ navigation }) {
 
   const boardRotation = rotateAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0deg', '90deg'],
+    outputRange: ["0deg", "90deg"],
   });
 
   // Increment game time each second
@@ -90,10 +92,21 @@ export default function GameScreen({ navigation }) {
   const handleTimeout = useCallback(async () => {
     if (!isBoardShown || !gameInProgress) return;
     setGameInProgress(false);
-    await addGameToHistory(currentRound, currentGameTime, totalGameTime, gameResults.LOSE);
+    await addGameToHistory(
+      currentRound,
+      currentGameTime,
+      totalGameTime,
+      gameResults.LOSE,
+    );
     setTypeLost(typeOfLost.TIME_OUT);
     setLostDialog(true);
-  }, [isBoardShown, gameInProgress, currentRound, currentGameTime, totalGameTime]);
+  }, [
+    isBoardShown,
+    gameInProgress,
+    currentRound,
+    currentGameTime,
+    totalGameTime,
+  ]);
 
   useTimer(gameInProgress, currentGameTime, handleTick, handleTimeout);
 
@@ -128,21 +141,40 @@ export default function GameScreen({ navigation }) {
     };
   }, []);
 
-  const handleSquareTap = useCallback(async (id) => {
-    const result = handleItemClick(id);
-    if (!result) return;
+  const handleSquareTap = useCallback(
+    async (id) => {
+      const result = handleItemClick(id);
+      if (!result) return;
 
-    setGameInProgress(false);
+      setGameInProgress(false);
 
-    if (result.lost) {
-      await addGameToHistory(currentRound, currentGameTime, totalGameTime, gameResults.LOSE);
-      setTypeLost(typeOfLost.WRONG_CLICKED);
-      setLostDialog(true);
-    } else if (result.won) {
-      await addGameToHistory(currentRound, currentGameTime, totalGameTime, gameResults.WIN);
-      setWonDialog(true);
-    }
-  }, [handleItemClick, currentRound, currentGameTime, totalGameTime, addGameToHistory]);
+      if (result.lost) {
+        await addGameToHistory(
+          currentRound,
+          currentGameTime,
+          totalGameTime,
+          gameResults.LOSE,
+        );
+        setTypeLost(typeOfLost.WRONG_CLICKED);
+        setLostDialog(true);
+      } else if (result.won) {
+        await addGameToHistory(
+          currentRound,
+          currentGameTime,
+          totalGameTime,
+          gameResults.WIN,
+        );
+        setWonDialog(true);
+      }
+    },
+    [
+      handleItemClick,
+      currentRound,
+      currentGameTime,
+      totalGameTime,
+      addGameToHistory,
+    ],
+  );
 
   const handleNextLevel = () => {
     setWonDialog(false);
@@ -161,7 +193,7 @@ export default function GameScreen({ navigation }) {
     setWonDialog(false);
     setLostDialog(false);
     setIsBoardShown(false);
-    navigation.navigate('Home');
+    navigation.navigate("Home");
   };
 
   // Compute square size from board size, column count, and margins
@@ -212,7 +244,10 @@ export default function GameScreen({ navigation }) {
   return (
     <View style={[styles.screen, { backgroundColor: colors.gradientStart }]}>
       <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           {isWide ? (
             /* Tablet/desktop: ResultsBox | board | StatusBox */
             <View style={styles.wideRow}>
@@ -235,7 +270,11 @@ export default function GameScreen({ navigation }) {
           ) : (
             /* Phone: ResultsBox (horizontal) / board / StatusBox (vertical) */
             <View style={styles.narrowCol}>
-              <ResultsBox history={history} visible={anyGameEverStarted} horizontal />
+              <ResultsBox
+                history={history}
+                visible={anyGameEverStarted}
+                horizontal
+              />
               <View style={styles.boardCentered}>{board}</View>
               <StatusBox
                 round={currentRound}
@@ -244,7 +283,7 @@ export default function GameScreen({ navigation }) {
                 solved={countOfValidClicked}
                 total={countOfValid}
                 visible={anyGameEverStarted}
-                vertical
+                horizontal
               />
             </View>
           )}
@@ -273,17 +312,17 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: 16,
   },
   // Tablet/desktop layout: side by side
   wideRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 24,
-    width: '100%',
+    width: "100%",
   },
   sidePanel: {
     flex: 1,
@@ -291,18 +330,18 @@ const styles = StyleSheet.create({
   },
   // Phone layout: stacked vertically
   narrowCol: {
-    alignItems: 'stretch',
+    alignItems: "stretch",
     gap: 16,
-    width: '100%',
+    width: "100%",
   },
   boardCentered: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   board: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignContent: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignContent: "center",
+    justifyContent: "center",
     borderRadius: 4,
   },
   square: {
