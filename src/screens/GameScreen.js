@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { useTheme } from "../theme/ThemeContext";
 import { useGameBoard } from "../hooks/useGameBoard";
 import { useTimer } from "../hooks/useTimer";
@@ -27,10 +28,45 @@ const SQUARE_MARGIN = { 3: 8, 4: 7, 5: 5, 6: 4 };
 // Max board size in logical pixels
 const MAX_BOARD_SIZE = 480;
 
+const AnimatedSquare = React.memo(function AnimatedSquare({
+  item,
+  squareSize,
+  margin,
+  colors,
+  itemsNotClickable,
+  onPress,
+}) {
+  const colorAnim = useRef(new Animated.Value(item.isClicked ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(colorAnim, {
+      toValue: item.isClicked ? 1 : 0,
+      duration: 450,
+      useNativeDriver: false,
+    }).start();
+  }, [item.isClicked, colorAnim]);
+
+  const activeColor = item.isValid ? colors.squareCorrect : colors.squareWrong;
+  const backgroundColor = colorAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.squareDefault, activeColor],
+  });
+
+  return (
+    <TouchableOpacity
+      activeOpacity={itemsNotClickable ? 1 : 0.7}
+      onPress={onPress}
+      style={{ width: squareSize, height: squareSize, margin }}
+    >
+      <Animated.View style={[styles.square, { backgroundColor }]} />
+    </TouchableOpacity>
+  );
+});
+
 export default function GameScreen({ navigation }) {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const { history, addGameToHistory } = useHistory(user);
+  const { history, addGameToHistory, refreshHistory } = useHistory(user);
   const { width, height } = useWindowDimensions();
   const BOARD_SIZE = Math.min(Math.min(width, height) * 0.85, MAX_BOARD_SIZE);
 
@@ -141,6 +177,13 @@ export default function GameScreen({ navigation }) {
     };
   }, []);
 
+  // Keep history-driven stats in sync after returning from History screen.
+  useFocusEffect(
+    useCallback(() => {
+      refreshHistory();
+    }, [refreshHistory]),
+  );
+
   const handleSquareTap = useCallback(
     async (id) => {
       const result = handleItemClick(id);
@@ -200,12 +243,6 @@ export default function GameScreen({ navigation }) {
   const margin = SQUARE_MARGIN[columns] ?? 4;
   const squareSize = (BOARD_SIZE - margin * 2 * columns) / columns;
 
-  const getSquareColor = (item) => {
-    if (item.isClicked && item.isValid) return colors.squareCorrect;
-    if (item.isClicked && !item.isValid) return colors.squareWrong;
-    return colors.squareDefault;
-  };
-
   // Phone: stack vertically (ResultsBox above board, StatusBox below)
   // Tablet/desktop: ResultsBox left, board centre, StatusBox right
   const isWide = width >= 700;
@@ -223,19 +260,14 @@ export default function GameScreen({ navigation }) {
       ]}
     >
       {rectangles.map((item) => (
-        <TouchableOpacity
+        <AnimatedSquare
           key={item.id}
-          activeOpacity={itemsNotClickable ? 1 : 0.7}
+          item={item}
+          squareSize={squareSize}
+          margin={margin}
+          colors={colors}
+          itemsNotClickable={itemsNotClickable}
           onPress={() => handleSquareTap(item.id)}
-          style={[
-            styles.square,
-            {
-              width: squareSize,
-              height: squareSize,
-              margin,
-              backgroundColor: getSquareColor(item),
-            },
-          ]}
         />
       ))}
     </Animated.View>
@@ -345,6 +377,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   square: {
+    flex: 1,
     borderRadius: 4,
   },
 });
