@@ -151,7 +151,7 @@ function GlowEffect({ children }) {
 }
 
 // Auth modal (sign-in / sign-up) with enhanced design
-function AuthModal({ visible, onClose, colors }) {
+function AuthModal({ visible, onClose, onAuthSuccess, colors }) {
   const { signIn, signUp, error } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
@@ -182,6 +182,7 @@ function AuthModal({ visible, onClose, colors }) {
     if (ok) {
       setEmail("");
       setPassword("");
+      onAuthSuccess?.();
       onClose();
     }
   };
@@ -383,6 +384,12 @@ export default function HomeScreen({ navigation }) {
     setShowResume(false);
     resetGame();
     navigation.navigate("Game");
+  };
+
+  const handleAuthSuccess = () => {
+    resetGame();
+    setShowResume(false);
+    setIsBoardShown(false);
   };
 
   const cleanupAfterAccountAction = () => {
@@ -673,6 +680,7 @@ export default function HomeScreen({ navigation }) {
       <AuthModal
         visible={showAuth}
         onClose={() => setShowAuth(false)}
+        onAuthSuccess={handleAuthSuccess}
         colors={colors}
       />
     </View>
