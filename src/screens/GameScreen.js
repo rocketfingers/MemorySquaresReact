@@ -256,6 +256,16 @@ export default function GameScreen({ navigation }) {
 
   useTimer(gameInProgress, currentGameTime, handleTick, handleTimeout);
 
+  useEffect(() => {
+    if (
+      currentGameTime === timeConstants.MAX_ALLOWED_TIME &&
+      isBoardShown &&
+      gameInProgress
+    ) {
+      handleTimeout();
+    }
+  }, [currentGameTime, gameInProgress, handleTimeout, isBoardShown]);
+
   const startGame = useCallback(() => {
     setTypeLost(null);
     setIsBoardRotated(false);

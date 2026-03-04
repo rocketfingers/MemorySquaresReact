@@ -297,6 +297,8 @@ export default function HomeScreen({ navigation }) {
   const dontShowLoginPromptAgain = useSettingsStore(
     (s) => s.dontShowLoginPromptAgain,
   );
+  const isDark = useSettingsStore((s) => s.isDark);
+  const toggleTheme = useSettingsStore((s) => s.toggleTheme);
   const setDontShowLoginPromptAgain = useSettingsStore(
     (s) => s.setDontShowLoginPromptAgain,
   );
@@ -542,6 +544,16 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.outlineBtnText}>⏱ Game History</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={styles.themeBtn}
+              onPress={toggleTheme}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.themeBtnText}>
+                {isDark ? "☀️ Light Theme" : "🌙 Dark Theme"}
+              </Text>
+            </TouchableOpacity>
+
             {user ? (
               <View style={styles.accountActions}>
                 <TouchableOpacity
@@ -742,6 +754,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.1)",
   },
   outlineBtnText: { fontSize: 16, fontWeight: "600", color: "#fff" },
+  themeBtn: {
+    width: "100%",
+    paddingVertical: 14,
+    borderRadius: 50,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.32)",
+    marginBottom: 6,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  themeBtnText: { fontSize: 15, fontWeight: "600", color: "#fff" },
   accountActions: { width: "100%", alignItems: "center" },
   authRow: { marginTop: 8, alignItems: "center", padding: 8 },
   authText: { color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: "500" },
