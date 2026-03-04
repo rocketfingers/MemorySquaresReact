@@ -24,6 +24,7 @@ import { useHistory } from "../hooks/useHistory";
 import { useGameStatusStore } from "../stores/gameStatusStore";
 import { timeConstants, typeOfLost } from "../constants/gameConstants";
 import { gameResults } from "../constants/gameResult";
+import { levelsConfiguration } from "../constants/levelsConfiguration";
 import StatusBox from "../components/StatusBox";
 import ResultsBox from "../components/ResultsBox";
 import GameWonDialog from "../components/GameWonDialog";
@@ -36,6 +37,24 @@ const MAX_BOARD_SIZE = 480;
 const BOARD_BORDER_WIDTH = 4;
 const BOARD_PADDING = 8;
 const SWAP_ANIMATION_DURATION = 1000;
+
+const getColumnsForRound = (round) => levelsConfiguration[round - 1]?.columns ?? 6;
+
+const shouldSwapOnRound = (round) => {
+  if (round < 6) return false;
+
+  const cols = getColumnsForRound(round);
+  if (cols <= 4) return round % 6 === 0;
+  if (cols === 5) return round % 4 === 0;
+  return round % 3 === 0;
+};
+
+const getSwapCountForRound = (round) => {
+  const cols = getColumnsForRound(round);
+  if (cols >= 6) return 3;
+  if (cols === 5) return 2;
+  return 1;
+};
 
 const AnimatedSquare = React.memo(function AnimatedSquare({
   item,
@@ -199,6 +218,7 @@ export default function GameScreen({ navigation }) {
   const [typeLost, setTypeLost] = useState(null);
   const [isBoardRotated, setIsBoardRotated] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
+  const [swapCountLabel, setSwapCountLabel] = useState(0);
 
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const previewTimerRef = useRef(null);
@@ -284,8 +304,6 @@ export default function GameScreen({ navigation }) {
     }
   }, [currentGameTime, gameInProgress, handleTimeout, isBoardShown]);
 
-  const shouldSwapRound = useCallback((round) => round > 2 && round % 4 === 0, []);
-
   const startGame = useCallback(() => {
     const startPlayPhase = () => {
       setAnyGameEverStarted(true);
@@ -296,6 +314,7 @@ export default function GameScreen({ navigation }) {
     setTypeLost(null);
     setIsBoardRotated(false);
     setIsSwapping(false);
+    setSwapCountLabel(0);
     setIsBoardShown(true);
     setGameInProgress(false);
     setCurrentGameTime(0);
@@ -312,8 +331,10 @@ export default function GameScreen({ navigation }) {
       boardResultsShowOrHide(false, null);
       disableClicking();
 
-      if (shouldSwapRound(currentRound)) {
+      if (shouldSwapOnRound(currentRound)) {
+        const swapCount = getSwapCountForRound(currentRound);
         setIsSwapping(true);
+        setSwapCountLabel(swapCount);
         LayoutAnimation.configureNext({
           duration: SWAP_ANIMATION_DURATION,
           create: {
@@ -329,9 +350,10 @@ export default function GameScreen({ navigation }) {
           },
         });
 
-        swapRandomSquares(1);
+        swapRandomSquares(swapCount);
         swapTimerRef.current = setTimeout(() => {
           setIsSwapping(false);
+          setSwapCountLabel(0);
           startPlayPhase();
         }, SWAP_ANIMATION_DURATION);
       } else {
@@ -351,7 +373,6 @@ export default function GameScreen({ navigation }) {
     disableClicking,
     enableClicking,
     swapRandomSquares,
-    shouldSwapRound,
     shouldRotate,
   ]);
 
@@ -399,6 +420,7 @@ export default function GameScreen({ navigation }) {
 
             setGameInProgress(false);
             setIsSwapping(false);
+            setSwapCountLabel(0);
             if (shouldRecordLoss) {
               await addGameToHistory(
                 currentRound,
@@ -535,9 +557,14 @@ export default function GameScreen({ navigation }) {
       </Animated.View>
 
       {isSwapping && (
-        <View style={styles.swapBanner} pointerEvents="none">
-          <Text style={styles.swapBannerText}>🔀 Squares are swapping...</Text>
-        </View>
+        <>
+          <View style={styles.swapOverlay} pointerEvents="none" />
+          <View style={styles.swapBanner} pointerEvents="none">
+            <Text style={styles.swapBannerText}>
+              🔀 {swapCountLabel} swap{swapCountLabel === 1 ? "" : "s"} in motion!
+            </Text>
+          </View>
+        </>
       )}
     </View>
   );
@@ -703,6 +730,17 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 2,
     borderColor: "#f59e0b",
+  },
+  swapOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 20,
+    backgroundColor: "rgba(251, 191, 36, 0.2)",
+    borderWidth: 4,
+    borderColor: "rgba(245, 158, 11, 0.7)",
   },
   swapBannerText: {
     color: "#7c2d12",
