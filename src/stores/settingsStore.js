@@ -6,7 +6,10 @@ export const useSettingsStore = create(
   persist(
     (set) => ({
       isDark: false,
+      dontShowLoginPromptAgain: false,
       toggleTheme: () => set((s) => ({ isDark: !s.isDark })),
+      setDontShowLoginPromptAgain: (value) =>
+        set({ dontShowLoginPromptAgain: value }),
     }),
     {
       name: 'settings-store',

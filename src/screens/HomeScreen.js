@@ -17,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "../theme/ThemeContext";
 import { useGameStatusStore } from "../stores/gameStatusStore";
+import { useSettingsStore } from "../stores/settingsStore";
 import { useAuth } from "../hooks/useAuth";
 
 const { width, height } = Dimensions.get("window");
@@ -286,12 +287,19 @@ function AuthModal({ visible, onClose, colors }) {
 
 export default function HomeScreen({ navigation }) {
   const { colors } = useTheme();
-  const { user, signOut, deleteAccount } = useAuth();
+  const { user, loading, signOut, deleteAccount } = useAuth();
   const currentRound = useGameStatusStore((s) => s.currentRound);
   const gameInProgress = useGameStatusStore((s) => s.gameInProgress);
+  const isBoardShown = useGameStatusStore((s) => s.isBoardShown);
   const setGameInProgress = useGameStatusStore((s) => s.setGameInProgress);
   const setIsBoardShown = useGameStatusStore((s) => s.setIsBoardShown);
   const resetGame = useGameStatusStore((s) => s.resetGame);
+  const dontShowLoginPromptAgain = useSettingsStore(
+    (s) => s.dontShowLoginPromptAgain,
+  );
+  const setDontShowLoginPromptAgain = useSettingsStore(
+    (s) => s.setDontShowLoginPromptAgain,
+  );
 
   const [showResume, setShowResume] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
@@ -300,6 +308,7 @@ export default function HomeScreen({ navigation }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const hasCheckedLoginPrompt = useRef(false);
 
   useEffect(() => {
     Animated.parallel([
@@ -335,6 +344,26 @@ export default function HomeScreen({ navigation }) {
     setIsBoardShown(false);
   }, []);
 
+  useEffect(() => {
+    if (loading || hasCheckedLoginPrompt.current) return;
+    hasCheckedLoginPrompt.current = true;
+
+    if (!user && !dontShowLoginPromptAgain) {
+      Alert.alert(
+        "Sync your progress",
+        "Sign in to sync your game history across devices.",
+        [
+          { text: "Sign In", onPress: () => setShowAuth(true) },
+          {
+            text: "Dismiss",
+            style: "cancel",
+            onPress: () => setDontShowLoginPromptAgain(true),
+          },
+        ],
+      );
+    }
+  }, [loading, user, dontShowLoginPromptAgain, setDontShowLoginPromptAgain]);
+
   const handleStartPress = () => {
     if (currentRound > 1) {
       setShowResume(true);
@@ -360,7 +389,17 @@ export default function HomeScreen({ navigation }) {
     setShowResume(false);
   };
 
+  const accountActionsDisabled = authActionInProgress || isBoardShown;
+
   const handleSignOutPress = () => {
+    if (isBoardShown) {
+      Alert.alert(
+        "Action unavailable",
+        "You cannot sign out during the game.",
+      );
+      return;
+    }
+
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
       {
@@ -384,6 +423,14 @@ export default function HomeScreen({ navigation }) {
   };
 
   const handleDeleteAccountPress = () => {
+    if (isBoardShown) {
+      Alert.alert(
+        "Action unavailable",
+        "You cannot delete your account during the game.",
+      );
+      return;
+    }
+
     Alert.alert(
       "Delete Account",
       "Are you sure you want to permanently delete your account? This action cannot be undone.",
@@ -498,10 +545,10 @@ export default function HomeScreen({ navigation }) {
             {user ? (
               <View style={styles.accountActions}>
                 <TouchableOpacity
-                  style={styles.authRow}
+                  style={[styles.authRow, accountActionsDisabled && styles.actionDisabled]}
                   onPress={handleSignOutPress}
                   activeOpacity={0.7}
-                  disabled={authActionInProgress}
+                  disabled={accountActionsDisabled}
                 >
                   <Text style={styles.authText}>
                     {authActionInProgress
@@ -511,13 +558,22 @@ export default function HomeScreen({ navigation }) {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.deleteAccountBtn}
+                  style={[
+                    styles.deleteAccountBtn,
+                    accountActionsDisabled && styles.actionDisabled,
+                  ]}
                   onPress={handleDeleteAccountPress}
                   activeOpacity={0.7}
-                  disabled={authActionInProgress}
+                  disabled={accountActionsDisabled}
                 >
                   <Text style={styles.deleteAccountText}>🗑 Delete account</Text>
                 </TouchableOpacity>
+
+                {isBoardShown && (
+                  <Text style={styles.actionHint}>
+                    You cannot manage your account during the game.
+                  </Text>
+                )}
               </View>
             ) : (
               <TouchableOpacity
@@ -691,6 +747,13 @@ const styles = StyleSheet.create({
   authText: { color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: "500" },
   deleteAccountBtn: { marginTop: 4, alignItems: "center", padding: 8 },
   deleteAccountText: { color: "#fecaca", fontSize: 13, fontWeight: "600" },
+  actionDisabled: { opacity: 0.45 },
+  actionHint: {
+    marginTop: 4,
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 12,
+    textAlign: "center",
+  },
 
   infoCard: {
     width: "100%",

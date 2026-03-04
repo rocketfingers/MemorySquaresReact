@@ -27,8 +27,8 @@
 - [x] Add delete-account flow in [`src/hooks/useAuth.js`](src/hooks/useAuth.js)
 - [x] Surface delete-account action in [`src/screens/HomeScreen.js`](src/screens/HomeScreen.js)
 - [x] Ensure state/session cleanup and user feedback paths
-- [ ] Add guest login prompt + dismiss persistence parity from [`../MemorySquares/src/layouts/MainLayout.vue`](../MemorySquares/src/layouts/MainLayout.vue) into [`src/screens/HomeScreen.js`](src/screens/HomeScreen.js) and [`src/stores/settingsStore.js`](src/stores/settingsStore.js)
-- [ ] Align authenticated account controls with source UX (identity display and gameplay-time action guards)
+- [x] Add guest login prompt + dismiss persistence parity from [`../MemorySquares/src/layouts/MainLayout.vue`](../MemorySquares/src/layouts/MainLayout.vue) into [`src/screens/HomeScreen.js`](src/screens/HomeScreen.js) and [`src/stores/settingsStore.js`](src/stores/settingsStore.js)
+- [x] Align authenticated account controls with source UX (identity display and gameplay-time action guards)
 
 ### 3) Port history UX parity
 
