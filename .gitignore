@@ -10,5 +10,6 @@ package-lock.json
 *.mobileprovision
 *.orig.*
 web-build/
+coverage/
 .env
 .env.local
