@@ -40,8 +40,8 @@
 
 - [x] Reconcile board preview/transition behavior from [`../MemorySquares/src/pages/GamePage.vue`](../MemorySquares/src/pages/GamePage.vue) into [`src/screens/GameScreen.js`](src/screens/GameScreen.js)
 - [ ] Verify round flow, timers, click rules, and dialog triggers
-- [ ] Add explicit in-game "return to menu" confirmation that records a loss (parity with [`../MemorySquares/src/layouts/MainLayout.vue`](../MemorySquares/src/layouts/MainLayout.vue) home action)
-- [ ] Restore `anyGameEverStarted` parity in [`src/stores/gameStatusStore.js`](src/stores/gameStatusStore.js) and consumers
+- [x] Add explicit in-game "return to menu" confirmation that records a loss (parity with [`../MemorySquares/src/layouts/MainLayout.vue`](../MemorySquares/src/layouts/MainLayout.vue) home action)
+- [x] Restore `anyGameEverStarted` parity in [`src/stores/gameStatusStore.js`](src/stores/gameStatusStore.js) and consumers
 
 ### 5) Port visual/animation details
 

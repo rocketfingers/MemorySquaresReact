@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
+  Text,
   TouchableOpacity,
   StyleSheet,
   Animated,
   ScrollView,
   useWindowDimensions,
+  Alert,
+  BackHandler,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
@@ -160,6 +163,10 @@ export default function GameScreen({ navigation }) {
 
   const currentRound = useGameStatusStore((s) => s.currentRound);
   const setCurrentRound = useGameStatusStore((s) => s.setCurrentRound);
+  const anyGameEverStarted = useGameStatusStore((s) => s.anyGameEverStarted);
+  const setAnyGameEverStarted = useGameStatusStore(
+    (s) => s.setAnyGameEverStarted,
+  );
   const gameInProgress = useGameStatusStore((s) => s.gameInProgress);
   const setGameInProgress = useGameStatusStore((s) => s.setGameInProgress);
   const isBoardShown = useGameStatusStore((s) => s.isBoardShown);
@@ -168,10 +175,6 @@ export default function GameScreen({ navigation }) {
   const setCurrentGameTime = useGameStatusStore((s) => s.setCurrentGameTime);
   const totalGameTime = useGameStatusStore((s) => s.totalGameTime);
   const setTotalGameTime = useGameStatusStore((s) => s.setTotalGameTime);
-  const anyGameEverStarted = useGameStatusStore(
-    (s) => s.gameInProgress || s.currentRound > 1,
-  );
-
   const {
     columns,
     rectangles,
@@ -267,6 +270,7 @@ export default function GameScreen({ navigation }) {
     previewTimerRef.current = setTimeout(() => {
       // onPlayStart: mark game as in-progress
       boardResultsShowOrHide(false, () => {
+        setAnyGameEverStarted(true);
         setGameInProgress(true);
       });
       // Apply rotation if this level needs it
@@ -274,7 +278,13 @@ export default function GameScreen({ navigation }) {
         setIsBoardRotated(true);
       }
     }, timeConstants.PREVIEW_DURATION);
-  }, [currentRound, resetBoard, boardResultsShowOrHide, shouldRotate]);
+  }, [
+    currentRound,
+    resetBoard,
+    boardResultsShowOrHide,
+    setAnyGameEverStarted,
+    shouldRotate,
+  ]);
 
   // Start game on mount
   useEffect(() => {
@@ -289,6 +299,72 @@ export default function GameScreen({ navigation }) {
     useCallback(() => {
       refreshHistory();
     }, [refreshHistory]),
+  );
+
+  const handleExitToMenuPress = useCallback(() => {
+    if (!isBoardShown && !gameInProgress) {
+      navigation.navigate("Home");
+      return;
+    }
+
+    Alert.alert(
+      "Return to Menu?",
+      "Your current game will be counted as a loss. Are you sure?",
+      [
+        { text: "Keep Playing", style: "cancel" },
+        {
+          text: "Quit Game",
+          style: "destructive",
+          onPress: async () => {
+            if (previewTimerRef.current) {
+              clearTimeout(previewTimerRef.current);
+              previewTimerRef.current = null;
+            }
+
+            const shouldRecordLoss = isBoardShown && !wonDialog && !lostDialog;
+
+            setGameInProgress(false);
+            if (shouldRecordLoss) {
+              await addGameToHistory(
+                currentRound,
+                currentGameTime,
+                totalGameTime,
+                gameResults.LOSE,
+              );
+            }
+
+            setIsBoardShown(false);
+            setWonDialog(false);
+            setLostDialog(false);
+            navigation.navigate("Home");
+          },
+        },
+      ],
+    );
+  }, [
+    addGameToHistory,
+    currentRound,
+    currentGameTime,
+    gameInProgress,
+    isBoardShown,
+    lostDialog,
+    navigation,
+    totalGameTime,
+    wonDialog,
+  ]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          handleExitToMenuPress();
+          return true;
+        },
+      );
+
+      return () => subscription.remove();
+    }, [handleExitToMenuPress]),
   );
 
   const handleSquareTap = useCallback(
@@ -397,6 +473,16 @@ export default function GameScreen({ navigation }) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.topActions}>
+            <TouchableOpacity
+              onPress={handleExitToMenuPress}
+              style={styles.menuBackButton}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.menuBackButtonText}>← Menu</Text>
+            </TouchableOpacity>
+          </View>
+
           {isWide ? (
             /* Tablet/desktop: ResultsBox | board | StatusBox */
             <View style={styles.wideRow}>
@@ -465,6 +551,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 16,
+  },
+  topActions: {
+    width: "100%",
+    alignItems: "flex-start",
+    marginBottom: 10,
+  },
+  menuBackButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  menuBackButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   // Tablet/desktop layout: side by side
   wideRow: {
