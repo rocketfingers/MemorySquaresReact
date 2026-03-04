@@ -51,13 +51,13 @@
 
 ### 6) Validate and stabilize
 
-- [ ] Run focused regression checks:
+- [x] Run focused regression checks:
   - guest flow
   - authenticated flow
   - clear history
   - round progression
   - win/loss dialogs
-- [ ] Fix discovered regressions
+- [x] Fix discovered regressions
 
 ### 7) CI/CD parity with first project
 
