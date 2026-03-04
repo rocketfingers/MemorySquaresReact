@@ -300,9 +300,11 @@ export default function HomeScreen({ navigation }) {
   );
   const isDark = useSettingsStore((s) => s.isDark);
   const toggleTheme = useSettingsStore((s) => s.toggleTheme);
+  const lastProgressOwner = useSettingsStore((s) => s.lastProgressOwner);
   const setDontShowLoginPromptAgain = useSettingsStore(
     (s) => s.setDontShowLoginPromptAgain,
   );
+  const setLastProgressOwner = useSettingsStore((s) => s.setLastProgressOwner);
 
   const [showResume, setShowResume] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
@@ -366,6 +368,18 @@ export default function HomeScreen({ navigation }) {
       );
     }
   }, [loading, user, dontShowLoginPromptAgain, setDontShowLoginPromptAgain]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const owner = user?.id ?? null;
+    if (lastProgressOwner !== owner) {
+      resetGame();
+      setShowResume(false);
+      setIsBoardShown(false);
+      setLastProgressOwner(owner);
+    }
+  }, [loading, user?.id, lastProgressOwner, resetGame, setIsBoardShown, setLastProgressOwner]);
 
   const handleStartPress = () => {
     if (currentRound > 1) {

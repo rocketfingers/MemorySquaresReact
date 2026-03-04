@@ -7,9 +7,11 @@ export const useSettingsStore = create(
     (set) => ({
       isDark: false,
       dontShowLoginPromptAgain: false,
+      lastProgressOwner: null,
       toggleTheme: () => set((s) => ({ isDark: !s.isDark })),
       setDontShowLoginPromptAgain: (value) =>
         set({ dontShowLoginPromptAgain: value }),
+      setLastProgressOwner: (value) => set({ lastProgressOwner: value }),
     }),
     {
       name: 'settings-store',
