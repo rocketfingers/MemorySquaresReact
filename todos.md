@@ -61,9 +61,9 @@
 
 ### 7) CI/CD parity with first project
 
-- [ ] Create GitHub workflow in [`/.github/workflows`](.github/workflows) matching the first project setup in [`../MemorySquares/.github/workflows`](../MemorySquares/.github/workflows)
-- [ ] Adjust workflow commands for this Expo/React Native project (pnpm scripts, lint/test/build as applicable)
-- [ ] Validate workflow file syntax and trigger conditions
+- [x] Create GitHub workflow in [`/.github/workflows`](.github/workflows) matching the first project setup in [`../MemorySquares/.github/workflows`](../MemorySquares/.github/workflows)
+- [x] Adjust workflow commands for this Expo/React Native project (pnpm scripts, lint/test/build as applicable)
+- [x] Validate workflow file syntax and trigger conditions
 
 ## Supabase Phase (Completed)
 
