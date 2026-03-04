@@ -9,6 +9,7 @@
 
 - [x] Audit parity between [`../MemorySquares`](../MemorySquares) and [`.`](.)
 - [x] Extract Supabase schema requirements from the source app
+- [x] Configure Supabase MCP client in [`opencode.json`](opencode.json)
 
 ## Next Actions (Implementation Phase)
 
@@ -23,9 +24,9 @@
 
 ### 2) Port account management parity
 
-- [ ] Add delete-account flow in [`src/hooks/useAuth.js`](src/hooks/useAuth.js)
-- [ ] Surface delete-account action in [`src/screens/HomeScreen.js`](src/screens/HomeScreen.js)
-- [ ] Ensure state/session cleanup and user feedback paths
+- [x] Add delete-account flow in [`src/hooks/useAuth.js`](src/hooks/useAuth.js)
+- [x] Surface delete-account action in [`src/screens/HomeScreen.js`](src/screens/HomeScreen.js)
+- [x] Ensure state/session cleanup and user feedback paths
 
 ### 3) Port history UX parity
 
@@ -61,5 +62,6 @@
 
 ## Deferred (Supabase Phase)
 
+- [ ] Add `public.delete_user` RPC (or equivalent secure backend path) used by delete-account flow
 - [ ] Apply schema + RLS via MCP/CLI once connection details are provided
 - [ ] Add migration files to repo and document rollout/rollback

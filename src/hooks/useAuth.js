@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase';
  * - signUp(email, password): creates a new account
  * - signIn(email, password): signs in an existing user
  * - signOut(): signs out the current user
+ * - deleteAccount(): deletes the signed-in account (requires delete_user RPC)
  * - error: last auth error message or null
  */
 export function useAuth() {
@@ -49,8 +50,41 @@ export function useAuth() {
   const signOut = async () => {
     setError(null);
     const { error: err } = await supabase.auth.signOut();
-    if (err) setError(err.message);
+    if (err) {
+      setError(err.message);
+      return false;
+    }
+    setUser(null);
+    return true;
   };
 
-  return { user, loading, error, signUp, signIn, signOut };
+  const deleteAccount = async () => {
+    setError(null);
+
+    const { error: err } = await supabase.rpc('delete_user');
+
+    if (err) {
+      let message = err.message || 'Unable to delete account right now.';
+      if (
+        message.includes('Could not find the function public.delete_user') ||
+        (message.includes('delete_user') && message.toLowerCase().includes('function'))
+      ) {
+        message =
+          'Delete account is not configured yet. Add a public.delete_user RPC in Supabase.';
+      }
+      setError(message);
+      return { ok: false, error: message };
+    }
+
+    const signedOut = await signOut();
+    if (!signedOut) {
+      const message = 'Account was deleted, but signing out failed. Please restart the app.';
+      setError(message);
+      return { ok: false, error: message };
+    }
+
+    return { ok: true, error: null };
+  };
+
+  return { user, loading, error, signUp, signIn, signOut, deleteAccount };
 }

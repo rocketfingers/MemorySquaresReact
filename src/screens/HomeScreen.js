@@ -286,7 +286,7 @@ function AuthModal({ visible, onClose, colors }) {
 
 export default function HomeScreen({ navigation }) {
   const { colors } = useTheme();
-  const { user, signOut } = useAuth();
+  const { user, signOut, deleteAccount } = useAuth();
   const currentRound = useGameStatusStore((s) => s.currentRound);
   const gameInProgress = useGameStatusStore((s) => s.gameInProgress);
   const setGameInProgress = useGameStatusStore((s) => s.setGameInProgress);
@@ -295,6 +295,7 @@ export default function HomeScreen({ navigation }) {
 
   const [showResume, setShowResume] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [authActionInProgress, setAuthActionInProgress] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -351,6 +352,62 @@ export default function HomeScreen({ navigation }) {
     setShowResume(false);
     resetGame();
     navigation.navigate("Game");
+  };
+
+  const cleanupAfterAccountAction = () => {
+    resetGame();
+    setIsBoardShown(false);
+    setShowResume(false);
+  };
+
+  const handleSignOutPress = () => {
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Sign Out",
+        style: "destructive",
+        onPress: async () => {
+          setAuthActionInProgress(true);
+          const ok = await signOut();
+          setAuthActionInProgress(false);
+
+          if (!ok) {
+            Alert.alert("Sign Out Failed", "Please try again in a moment.");
+            return;
+          }
+
+          cleanupAfterAccountAction();
+          Alert.alert("Signed Out", "You have been signed out successfully.");
+        },
+      },
+    ]);
+  };
+
+  const handleDeleteAccountPress = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to permanently delete your account? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Forever",
+          style: "destructive",
+          onPress: async () => {
+            setAuthActionInProgress(true);
+            const result = await deleteAccount();
+            setAuthActionInProgress(false);
+
+            if (!result.ok) {
+              Alert.alert("Delete Failed", result.error);
+              return;
+            }
+
+            cleanupAfterAccountAction();
+            Alert.alert("Account Deleted", "Your account has been deleted.");
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -439,13 +496,29 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
 
             {user ? (
-              <TouchableOpacity
-                style={styles.authRow}
-                onPress={signOut}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.authText}>👋 Sign out ({user.email})</Text>
-              </TouchableOpacity>
+              <View style={styles.accountActions}>
+                <TouchableOpacity
+                  style={styles.authRow}
+                  onPress={handleSignOutPress}
+                  activeOpacity={0.7}
+                  disabled={authActionInProgress}
+                >
+                  <Text style={styles.authText}>
+                    {authActionInProgress
+                      ? "⏳ Processing account action..."
+                      : `👋 Sign out (${user.email})`}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.deleteAccountBtn}
+                  onPress={handleDeleteAccountPress}
+                  activeOpacity={0.7}
+                  disabled={authActionInProgress}
+                >
+                  <Text style={styles.deleteAccountText}>🗑 Delete account</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               <TouchableOpacity
                 style={styles.authRow}
@@ -613,8 +686,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.1)",
   },
   outlineBtnText: { fontSize: 16, fontWeight: "600", color: "#fff" },
+  accountActions: { width: "100%", alignItems: "center" },
   authRow: { marginTop: 8, alignItems: "center", padding: 8 },
   authText: { color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: "500" },
+  deleteAccountBtn: { marginTop: 4, alignItems: "center", padding: 8 },
+  deleteAccountText: { color: "#fecaca", fontSize: 13, fontWeight: "600" },
 
   infoCard: {
     width: "100%",
