@@ -123,6 +123,29 @@ export function useGameBoard() {
   const disableClicking = useCallback(() => setItemsNotClickable(true), []);
   const enableClicking = useCallback(() => setItemsNotClickable(false), []);
 
+  const swapRandomSquares = useCallback((swapCount = 1) => {
+    setRectangles((prev) => {
+      if (prev.length < 2 || swapCount <= 0) return prev;
+
+      const next = [...prev];
+
+      for (let i = 0; i < swapCount; i++) {
+        const first = Math.floor(Math.random() * next.length);
+        let second = Math.floor(Math.random() * next.length);
+
+        while (second === first) {
+          second = Math.floor(Math.random() * next.length);
+        }
+
+        const temp = next[first];
+        next[first] = next[second];
+        next[second] = temp;
+      }
+
+      return next;
+    });
+  }, []);
+
   return {
     columns,
     rectangles,
@@ -139,5 +162,6 @@ export function useGameBoard() {
     handleItemClick,
     disableClicking,
     enableClicking,
+    swapRandomSquares,
   };
 }

@@ -9,6 +9,9 @@ import {
   useWindowDimensions,
   Alert,
   BackHandler,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
@@ -32,6 +35,7 @@ const SQUARE_MARGIN = { 3: 10, 4: 8, 5: 6, 6: 5 };
 const MAX_BOARD_SIZE = 480;
 const BOARD_BORDER_WIDTH = 4;
 const BOARD_PADDING = 8;
+const SWAP_ANIMATION_DURATION = 1000;
 
 const AnimatedSquare = React.memo(function AnimatedSquare({
   item,
@@ -185,17 +189,31 @@ export default function GameScreen({ navigation }) {
     resetBoard,
     boardResultsShowOrHide,
     handleItemClick,
+    disableClicking,
+    enableClicking,
+    swapRandomSquares,
   } = useGameBoard();
 
   const [lostDialog, setLostDialog] = useState(false);
   const [wonDialog, setWonDialog] = useState(false);
   const [typeLost, setTypeLost] = useState(null);
   const [isBoardRotated, setIsBoardRotated] = useState(false);
+  const [isSwapping, setIsSwapping] = useState(false);
 
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const previewTimerRef = useRef(null);
+  const swapTimerRef = useRef(null);
   const boardScaleAnim = useRef(new Animated.Value(0.9)).current;
   const boardOpacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (
+      Platform.OS === "android" &&
+      UIManager.setLayoutAnimationEnabledExperimental
+    ) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
 
   // Animate board entrance
   useEffect(() => {
@@ -266,23 +284,60 @@ export default function GameScreen({ navigation }) {
     }
   }, [currentGameTime, gameInProgress, handleTimeout, isBoardShown]);
 
+  const shouldSwapRound = useCallback((round) => round > 2 && round % 4 === 0, []);
+
   const startGame = useCallback(() => {
+    const startPlayPhase = () => {
+      setAnyGameEverStarted(true);
+      setGameInProgress(true);
+      enableClicking();
+    };
+
     setTypeLost(null);
     setIsBoardRotated(false);
+    setIsSwapping(false);
     setIsBoardShown(true);
+    setGameInProgress(false);
     setCurrentGameTime(0);
     resetBoard(currentRound);
+    disableClicking();
 
     // Show preview then hide after PREVIEW_DURATION
     boardResultsShowOrHide(true, null);
 
     if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    if (swapTimerRef.current) clearTimeout(swapTimerRef.current);
+
     previewTimerRef.current = setTimeout(() => {
-      // onPlayStart: mark game as in-progress
-      boardResultsShowOrHide(false, () => {
-        setAnyGameEverStarted(true);
-        setGameInProgress(true);
-      });
+      boardResultsShowOrHide(false, null);
+      disableClicking();
+
+      if (shouldSwapRound(currentRound)) {
+        setIsSwapping(true);
+        LayoutAnimation.configureNext({
+          duration: SWAP_ANIMATION_DURATION,
+          create: {
+            type: LayoutAnimation.Types.easeInEaseOut,
+            property: LayoutAnimation.Properties.opacity,
+          },
+          update: {
+            type: LayoutAnimation.Types.easeInEaseOut,
+          },
+          delete: {
+            type: LayoutAnimation.Types.easeInEaseOut,
+            property: LayoutAnimation.Properties.opacity,
+          },
+        });
+
+        swapRandomSquares(1);
+        swapTimerRef.current = setTimeout(() => {
+          setIsSwapping(false);
+          startPlayPhase();
+        }, SWAP_ANIMATION_DURATION);
+      } else {
+        startPlayPhase();
+      }
+
       // Apply rotation if this level needs it
       if (shouldRotate(currentRound)) {
         setIsBoardRotated(true);
@@ -293,6 +348,10 @@ export default function GameScreen({ navigation }) {
     resetBoard,
     boardResultsShowOrHide,
     setAnyGameEverStarted,
+    disableClicking,
+    enableClicking,
+    swapRandomSquares,
+    shouldSwapRound,
     shouldRotate,
   ]);
 
@@ -301,6 +360,7 @@ export default function GameScreen({ navigation }) {
     startGame();
     return () => {
       if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+      if (swapTimerRef.current) clearTimeout(swapTimerRef.current);
     };
   }, []);
 
@@ -330,10 +390,15 @@ export default function GameScreen({ navigation }) {
               clearTimeout(previewTimerRef.current);
               previewTimerRef.current = null;
             }
+            if (swapTimerRef.current) {
+              clearTimeout(swapTimerRef.current);
+              swapTimerRef.current = null;
+            }
 
             const shouldRecordLoss = isBoardShown && !wonDialog && !lostDialog;
 
             setGameInProgress(false);
+            setIsSwapping(false);
             if (shouldRecordLoss) {
               await addGameToHistory(
                 currentRound,
@@ -442,31 +507,39 @@ export default function GameScreen({ navigation }) {
   const isWide = width >= 700;
 
   const board = (
-    <Animated.View
-      style={[
-        styles.board,
-        {
-          width: BOARD_SIZE,
-          height: BOARD_SIZE,
-          backgroundColor: colors.boardBackground,
-          transform: [{ rotate: boardRotation }, { scale: boardScaleAnim }],
-          opacity: boardOpacityAnim,
-          borderColor: colors.boardBorder,
-        },
-      ]}
-    >
-      {rectangles.map((item) => (
-        <AnimatedSquare
-          key={item.id}
-          item={item}
-          squareSize={squareSize}
-          margin={margin}
-          colors={colors}
-          itemsNotClickable={itemsNotClickable}
-          onPress={() => handleSquareTap(item.id)}
-        />
-      ))}
-    </Animated.View>
+    <View style={styles.boardWrap}>
+      <Animated.View
+        style={[
+          styles.board,
+          {
+            width: BOARD_SIZE,
+            height: BOARD_SIZE,
+            backgroundColor: colors.boardBackground,
+            transform: [{ rotate: boardRotation }, { scale: boardScaleAnim }],
+            opacity: boardOpacityAnim,
+            borderColor: colors.boardBorder,
+          },
+        ]}
+      >
+        {rectangles.map((item) => (
+          <AnimatedSquare
+            key={item.id}
+            item={item}
+            squareSize={squareSize}
+            margin={margin}
+            colors={colors}
+            itemsNotClickable={itemsNotClickable}
+            onPress={() => handleSquareTap(item.id)}
+          />
+        ))}
+      </Animated.View>
+
+      {isSwapping && (
+        <View style={styles.swapBanner} pointerEvents="none">
+          <Text style={styles.swapBannerText}>🔀 Squares are swapping...</Text>
+        </View>
+      )}
+    </View>
   );
 
   return (
@@ -602,6 +675,10 @@ const styles = StyleSheet.create({
   boardCentered: {
     alignItems: "center",
   },
+  boardWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
   board: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -615,6 +692,23 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 24,
     elevation: 10,
+  },
+  swapBanner: {
+    position: "absolute",
+    top: 12,
+    alignSelf: "center",
+    backgroundColor: "rgba(254, 240, 138, 0.95)",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: "#f59e0b",
+  },
+  swapBannerText: {
+    color: "#7c2d12",
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.2,
   },
   square: {
     flex: 1,

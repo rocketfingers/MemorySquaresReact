@@ -63,4 +63,32 @@ describe('useGameBoard', () => {
 
     expect(result.current.isGameWon).toBe(true);
   });
+
+  it('swaps square positions while preserving square data', () => {
+    const { result } = renderHook(() => useGameBoard());
+
+    act(() => {
+      result.current.resetBoard(1);
+    });
+
+    const randomSpy = jest
+      .spyOn(Math, 'random')
+      .mockReturnValueOnce(0.9)
+      .mockReturnValueOnce(0.1);
+
+    const before = result.current.rectangles.map((r) => r.id);
+
+    act(() => {
+      result.current.swapRandomSquares(1);
+    });
+
+    const after = result.current.rectangles.map((r) => r.id);
+    expect(after).toHaveLength(before.length);
+    expect(after).not.toEqual(before);
+    expect([...after].sort((a, b) => a - b)).toEqual(
+      [...before].sort((a, b) => a - b)
+    );
+
+    randomSpy.mockRestore();
+  });
 });
