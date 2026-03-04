@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -11,122 +11,274 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../theme/ThemeContext';
-import { useGameStatusStore } from '../stores/gameStatusStore';
-import { useAuth } from '../hooks/useAuth';
+  Dimensions,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { useTheme } from "../theme/ThemeContext";
+import { useGameStatusStore } from "../stores/gameStatusStore";
+import { useAuth } from "../hooks/useAuth";
 
-// Floating decorative square
-function DecoSquare({ style, delay }) {
+const { width, height } = Dimensions.get("window");
+
+// Floating decorative square with enhanced animation
+function DecoSquare({ style, delay, color = "rgba(255,255,255,0.15)" }) {
   const anim = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const rot = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
         Animated.delay(delay),
         Animated.parallel([
-          Animated.timing(anim, { toValue: { x: 20, y: -40 }, duration: 1750, useNativeDriver: true }),
-          Animated.timing(rot, { toValue: 1, duration: 1750, useNativeDriver: true }),
+          Animated.timing(anim, {
+            toValue: { x: 25, y: -50 },
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(rot, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+          Animated.sequence([
+            Animated.timing(scale, {
+              toValue: 1.1,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(scale, {
+              toValue: 1,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+          ]),
         ]),
         Animated.parallel([
-          Animated.timing(anim, { toValue: { x: 0, y: -60 }, duration: 875, useNativeDriver: true }),
-          Animated.timing(rot, { toValue: 2, duration: 875, useNativeDriver: true }),
+          Animated.timing(anim, {
+            toValue: { x: 0, y: -80 },
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(rot, {
+            toValue: 2,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
         ]),
         Animated.parallel([
-          Animated.timing(anim, { toValue: { x: -20, y: -40 }, duration: 875, useNativeDriver: true }),
-          Animated.timing(rot, { toValue: 3, duration: 875, useNativeDriver: true }),
+          Animated.timing(anim, {
+            toValue: { x: -25, y: -50 },
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(rot, {
+            toValue: 3,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
         ]),
         Animated.parallel([
-          Animated.timing(anim, { toValue: { x: 0, y: 0 }, duration: 1750, useNativeDriver: true }),
-          Animated.timing(rot, { toValue: 4, duration: 1750, useNativeDriver: true }),
+          Animated.timing(anim, {
+            toValue: { x: 0, y: 0 },
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(rot, {
+            toValue: 4,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
         ]),
-      ])
+      ]),
     );
     loop.start();
     return () => loop.stop();
   }, []);
 
-  const rotate = rot.interpolate({ inputRange: [0, 4], outputRange: ['0deg', '40deg'] });
+  const rotate = rot.interpolate({
+    inputRange: [0, 4],
+    outputRange: ["0deg", "360deg"],
+  });
 
   return (
     <Animated.View
       style={[
         styles.decoSquare,
         style,
-        { transform: [{ translateX: anim.x }, { translateY: anim.y }, { rotate }] },
+        {
+          backgroundColor: color,
+          transform: [
+            { translateX: anim.x },
+            { translateY: anim.y },
+            { rotate },
+            { scale },
+          ],
+        },
       ]}
     />
   );
 }
 
-// Auth modal (sign-in / sign-up)
+// Pulsing glow effect for the title
+function GlowEffect({ children }) {
+  const glowAnim = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 0.8,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0.3,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  return (
+    <Animated.View style={{ opacity: glowAnim }}>{children}</Animated.View>
+  );
+}
+
+// Auth modal (sign-in / sign-up) with enhanced design
 function AuthModal({ visible, onClose, colors }) {
   const { signIn, signUp, error } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const slideAnim = useRef(new Animated.Value(300)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
+    } else {
+      slideAnim.setValue(300);
+    }
+  }, [visible]);
 
   const handleSubmit = async () => {
     if (!email || !password) return;
     setSubmitting(true);
-    const ok = isSignUp ? await signUp(email, password) : await signIn(email, password);
+    const ok = isSignUp
+      ? await signUp(email, password)
+      : await signIn(email, password);
     setSubmitting(false);
     if (ok) {
-      setEmail('');
-      setPassword('');
+      setEmail("");
+      setPassword("");
       onClose();
     }
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.modalOverlay}
       >
-        <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>
-            {isSignUp ? 'Create Account' : 'Sign In'}
-          </Text>
-          <TextInput
-            style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
-            placeholder="Email"
-            placeholderTextColor={colors.textSecondary}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <TextInput
-            style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
-            placeholder="Password"
-            placeholderTextColor={colors.textSecondary}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          <TouchableOpacity
-            style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-            onPress={handleSubmit}
-            disabled={submitting}
+        <Animated.View
+          style={[
+            styles.modalCard,
+            {
+              backgroundColor: colors.surface,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <View
+            style={[styles.modalHeader, { backgroundColor: colors.primary }]}
           >
-            <Text style={styles.primaryBtnText}>
-              {submitting ? '...' : isSignUp ? 'Sign Up' : 'Sign In'}
+            <Text style={styles.modalHeaderIcon}>{isSignUp ? "✨" : "👋"}</Text>
+            <Text style={styles.modalHeaderText}>
+              {isSignUp ? "Create Account" : "Welcome Back"}
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setIsSignUp((v) => !v)} style={styles.linkRow}>
-            <Text style={[styles.linkText, { color: colors.textSecondary }]}>
-              {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onClose} style={styles.linkRow}>
-            <Text style={[styles.linkText, { color: colors.textSecondary }]}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
+          </View>
+
+          <View style={styles.modalBody}>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  color: colors.text,
+                  borderColor: colors.border,
+                  backgroundColor: colors.background,
+                },
+              ]}
+              placeholder="Email address"
+              placeholderTextColor={colors.textSecondary}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  color: colors.text,
+                  borderColor: colors.border,
+                  backgroundColor: colors.background,
+                },
+              ]}
+              placeholder="Password"
+              placeholderTextColor={colors.textSecondary}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+              onPress={handleSubmit}
+              disabled={submitting}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.primaryBtnText}>
+                {submitting
+                  ? "⏳ Please wait..."
+                  : isSignUp
+                    ? "🚀 Create Account"
+                    : "✓ Sign In"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setIsSignUp((v) => !v)}
+              style={styles.linkRow}
+            >
+              <Text style={[styles.linkText, { color: colors.primary }]}>
+                {isSignUp
+                  ? "Already have an account? Sign In"
+                  : "Don't have an account? Sign Up"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+              <Text style={styles.closeBtnText}>✕ Close</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -145,12 +297,28 @@ export default function HomeScreen({ navigation }) {
   const [showAuth, setShowAuth] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 8,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 8,
+      }),
     ]).start();
   }, []);
 
@@ -158,7 +326,10 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     if (gameInProgress) {
       setGameInProgress(false);
-      Alert.alert('Game Ended', 'You exited mid-game. It has been counted as a loss.');
+      Alert.alert(
+        "Game Ended",
+        "You exited mid-game. It has been counted as a loss.",
+      );
     }
     setIsBoardShown(false);
   }, []);
@@ -167,57 +338,121 @@ export default function HomeScreen({ navigation }) {
     if (currentRound > 1) {
       setShowResume(true);
     } else {
-      navigation.navigate('Game');
+      navigation.navigate("Game");
     }
   };
 
   const handleContinue = () => {
     setShowResume(false);
-    navigation.navigate('Game');
+    navigation.navigate("Game");
   };
 
   const handleNewGame = () => {
     setShowResume(false);
     resetGame();
-    navigation.navigate('Game');
+    navigation.navigate("Game");
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.gradientStart }]}>
+    <View style={styles.screen}>
+      <LinearGradient
+        colors={[colors.gradientStart, colors.gradientEnd]}
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+
       {/* Decorative floating squares */}
-      <DecoSquare style={{ width: 90, height: 90, top: '15%', left: '8%' }} delay={0} />
-      <DecoSquare style={{ width: 70, height: 70, bottom: '20%', left: '15%' }} delay={1200} />
-      <DecoSquare style={{ width: 110, height: 110, top: '30%', right: '12%' }} delay={700} />
+      <DecoSquare
+        style={{ width: 100, height: 100, top: "10%", left: "5%" }}
+        delay={0}
+        color="rgba(255,255,255,0.08)"
+      />
+      <DecoSquare
+        style={{ width: 80, height: 80, bottom: "15%", left: "10%" }}
+        delay={1500}
+        color="rgba(255,255,255,0.06)"
+      />
+      <DecoSquare
+        style={{ width: 120, height: 120, top: "25%", right: "8%" }}
+        delay={800}
+        color="rgba(255,255,255,0.07)"
+      />
+      <DecoSquare
+        style={{ width: 60, height: 60, bottom: "30%", right: "15%" }}
+        delay={2000}
+        color="rgba(255,255,255,0.05)"
+      />
 
       <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Title */}
-          <Animated.View style={[styles.titleWrapper, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-            <Text style={styles.brain}>🧠</Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Title Section */}
+          <Animated.View
+            style={[
+              styles.titleWrapper,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+              },
+            ]}
+          >
+            <GlowEffect>
+              <View style={styles.iconContainer}>
+                <Text style={styles.brain}>🧠</Text>
+              </View>
+            </GlowEffect>
             <Text style={styles.title}>Memory Squares</Text>
             <Text style={styles.subtitle}>Test your memory and reflexes!</Text>
           </Animated.View>
 
-          {/* Buttons */}
-          <Animated.View style={[styles.buttonsSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-            <TouchableOpacity style={[styles.startBtn, { backgroundColor: colors.primary }]} onPress={handleStartPress}>
-              <Text style={styles.startBtnText}>▶  Start Game</Text>
+          {/* Buttons Section */}
+          <Animated.View
+            style={[
+              styles.buttonsSection,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.startBtn}
+              onPress={handleStartPress}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={["#10b981", "#34d399"]}
+                style={styles.startBtnGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Text style={styles.startBtnText}>▶ Start Game</Text>
+              </LinearGradient>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.outlineBtn, { borderColor: 'rgba(255,255,255,0.8)' }]}
-              onPress={() => navigation.navigate('History')}
+              style={styles.outlineBtn}
+              onPress={() => navigation.navigate("History")}
+              activeOpacity={0.8}
             >
-              <Text style={[styles.outlineBtnText, { color: 'rgba(255,255,255,0.9)' }]}>⏱  Game History</Text>
+              <Text style={styles.outlineBtnText}>⏱ Game History</Text>
             </TouchableOpacity>
 
             {user ? (
-              <TouchableOpacity style={styles.linkRow} onPress={signOut}>
-                <Text style={styles.authText}>Sign out ({user.email})</Text>
+              <TouchableOpacity
+                style={styles.authRow}
+                onPress={signOut}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.authText}>👋 Sign out ({user.email})</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={styles.linkRow} onPress={() => setShowAuth(true)}>
-                <Text style={styles.authText}>Sign in to sync history ☁</Text>
+              <TouchableOpacity
+                style={styles.authRow}
+                onPress={() => setShowAuth(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.authText}>☁️ Sign in to sync history</Text>
               </TouchableOpacity>
             )}
           </Animated.View>
@@ -225,80 +460,265 @@ export default function HomeScreen({ navigation }) {
           {/* How to Play card */}
           <Animated.View style={[styles.infoCard, { opacity: fadeAnim }]}>
             <Text style={styles.infoTitle}>How to Play</Text>
-            <Text style={styles.infoLine}>👁  Memorize the highlighted squares</Text>
-            <Text style={styles.infoLine}>⏱  You have 3 seconds!</Text>
-            <Text style={styles.infoLine}>👆  Tap only the blue (valid) squares</Text>
-            <Text style={styles.infoLine}>⏰  Complete in 15 seconds</Text>
+            <View style={styles.infoDivider} />
+            <View style={styles.infoRow}>
+              <Text style={styles.infoIcon}>👁</Text>
+              <Text style={styles.infoLine}>
+                Memorize the highlighted squares
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoIcon}>⏱</Text>
+              <Text style={styles.infoLine}>
+                You have 3 seconds to memorize!
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoIcon}>👆</Text>
+              <Text style={styles.infoLine}>
+                Tap only the blue (valid) squares
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoIcon}>⏰</Text>
+              <Text style={styles.infoLine}>
+                Complete each round in 15 seconds
+              </Text>
+            </View>
           </Animated.View>
         </ScrollView>
       </SafeAreaView>
 
       {/* Resume dialog */}
-      <Modal visible={showResume} transparent animationType="fade" onRequestClose={() => setShowResume(false)}>
+      <Modal
+        visible={showResume}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowResume(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Resume Game?</Text>
-            <Text style={[styles.modalMsg, { color: colors.textSecondary }]}>
-              You have a game in progress at Round {currentRound}. Would you like to continue?
-            </Text>
-            <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.primary }]} onPress={handleContinue}>
-              <Text style={styles.primaryBtnText}>▶  Continue</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.error, marginTop: 8 }]} onPress={handleNewGame}>
-              <Text style={styles.primaryBtnText}>↺  New Game</Text>
-            </TouchableOpacity>
+            <View
+              style={[styles.modalHeader, { backgroundColor: colors.primary }]}
+            >
+              <Text style={styles.modalHeaderIcon}>🎮</Text>
+              <Text style={styles.modalHeaderText}>Resume Game?</Text>
+            </View>
+            <View style={styles.modalBody}>
+              <Text style={[styles.modalMsg, { color: colors.textSecondary }]}>
+                You have a game in progress at Round {currentRound}. Would you
+                like to continue?
+              </Text>
+              <TouchableOpacity
+                style={[styles.primaryBtn, { backgroundColor: "#10b981" }]}
+                onPress={handleContinue}
+              >
+                <Text style={styles.primaryBtnText}>▶ Continue</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.primaryBtn,
+                  { backgroundColor: colors.error, marginTop: 10 },
+                ]}
+                onPress={handleNewGame}
+              >
+                <Text style={styles.primaryBtnText}>↺ New Game</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
 
-      <AuthModal visible={showAuth} onClose={() => setShowAuth(false)} colors={colors} />
+      <AuthModal
+        visible={showAuth}
+        onClose={() => setShowAuth(false)}
+        colors={colors}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  gradient: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   safeArea: { flex: 1 },
-  scrollContent: { flexGrow: 1, alignItems: 'center', paddingHorizontal: 24, paddingBottom: 40 },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
 
-  titleWrapper: { alignItems: 'center', marginTop: 60, marginBottom: 40 },
-  brain: { fontSize: 80 },
+  titleWrapper: { alignItems: "center", marginTop: 50, marginBottom: 36 },
+  iconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  brain: { fontSize: 64 },
   title: {
-    fontSize: 40, fontWeight: '900', color: '#fff', marginTop: 8,
-    textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 12,
+    fontSize: 38,
+    fontWeight: "800",
+    color: "#fff",
+    textAlign: "center",
+    textShadowColor: "rgba(0,0,0,0.25)",
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 16,
+    letterSpacing: -0.5,
   },
-  subtitle: { fontSize: 16, color: 'rgba(255,255,255,0.9)', marginTop: 6, fontWeight: '300' },
+  subtitle: {
+    fontSize: 17,
+    color: "rgba(255,255,255,0.85)",
+    marginTop: 8,
+    fontWeight: "400",
+    letterSpacing: 0.3,
+  },
 
-  buttonsSection: { width: '100%', alignItems: 'center', marginBottom: 24 },
+  buttonsSection: { width: "100%", alignItems: "center", marginBottom: 28 },
   startBtn: {
-    width: '100%', paddingVertical: 18, borderRadius: 50, alignItems: 'center', marginBottom: 14,
-    shadowColor: '#000', shadowOpacity: 0.2, shadowOffset: { width: 0, height: 8 }, shadowRadius: 16, elevation: 8,
+    width: "100%",
+    borderRadius: 50,
+    overflow: "hidden",
+    marginBottom: 16,
+    shadowColor: "#10b981",
+    shadowOpacity: 0.4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 24,
+    elevation: 12,
   },
-  startBtnText: { color: '#fff', fontSize: 18, fontWeight: '700', letterSpacing: 0.5 },
-  outlineBtn: { width: '100%', paddingVertical: 14, borderRadius: 50, alignItems: 'center', borderWidth: 2, marginBottom: 14 },
-  outlineBtnText: { fontSize: 16, fontWeight: '600' },
-  linkRow: { marginTop: 6, alignItems: 'center' },
-  authText: { color: 'rgba(255,255,255,0.75)', fontSize: 14, textDecorationLine: 'underline' },
+  startBtnGradient: {
+    paddingVertical: 18,
+    alignItems: "center",
+  },
+  startBtnText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  outlineBtn: {
+    width: "100%",
+    paddingVertical: 16,
+    borderRadius: 50,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.4)",
+    marginBottom: 16,
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  outlineBtnText: { fontSize: 16, fontWeight: "600", color: "#fff" },
+  authRow: { marginTop: 8, alignItems: "center", padding: 8 },
+  authText: { color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: "500" },
 
   infoCard: {
-    width: '100%', borderRadius: 16, padding: 20, backgroundColor: 'rgba(255,255,255,0.95)',
-    shadowColor: '#000', shadowOpacity: 0.1, shadowOffset: { width: 0, height: 8 }, shadowRadius: 24, elevation: 4,
+    width: "100%",
+    borderRadius: 24,
+    padding: 24,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 12 },
+    shadowRadius: 32,
+    elevation: 8,
   },
-  infoTitle: { fontSize: 18, fontWeight: '700', color: '#667eea', marginBottom: 12, textAlign: 'center' },
-  infoLine: { fontSize: 14, color: '#444', lineHeight: 28 },
+  infoTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#6366f1",
+    marginBottom: 8,
+    textAlign: "center",
+    letterSpacing: 0.3,
+  },
+  infoDivider: {
+    height: 2,
+    backgroundColor: "#e2e8f0",
+    marginHorizontal: 40,
+    marginBottom: 16,
+    borderRadius: 1,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  infoIcon: { fontSize: 20, marginRight: 12, width: 28 },
+  infoLine: { fontSize: 15, color: "#475569", lineHeight: 22, flex: 1 },
 
-  decoSquare: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12 },
+  decoSquare: { position: "absolute", borderRadius: 16 },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
   modalCard: {
-    width: '100%', borderRadius: 16, padding: 24,
-    shadowColor: '#000', shadowOpacity: 0.2, shadowOffset: { width: 0, height: 8 }, shadowRadius: 24, elevation: 8,
+    width: "100%",
+    maxWidth: 400,
+    borderRadius: 28,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 20 },
+    shadowRadius: 40,
+    elevation: 15,
   },
-  modalTitle: { fontSize: 22, fontWeight: '700', marginBottom: 12, textAlign: 'center' },
-  modalMsg: { fontSize: 15, textAlign: 'center', marginBottom: 20, lineHeight: 22 },
+  modalHeader: {
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+    alignItems: "center",
+  },
+  modalHeaderIcon: { fontSize: 40, marginBottom: 8 },
+  modalHeaderText: { color: "#fff", fontSize: 22, fontWeight: "700" },
+  modalBody: { padding: 24 },
+  modalMsg: {
+    fontSize: 15,
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 24,
+  },
 
-  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12, fontSize: 16 },
-  primaryBtn: { paddingVertical: 14, borderRadius: 10, alignItems: 'center', marginTop: 4 },
-  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  errorText: { color: '#e05252', fontSize: 13, marginBottom: 8, textAlign: 'center' },
+  input: {
+    borderWidth: 2,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 14,
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  primaryBtn: {
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  primaryBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  errorText: {
+    color: "#ef4444",
+    fontSize: 13,
+    marginBottom: 12,
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  linkRow: { marginTop: 16, alignItems: "center" },
+  linkText: { fontSize: 14, fontWeight: "600" },
+  closeBtn: { marginTop: 12, alignItems: "center", padding: 8 },
+  closeBtnText: { color: "#94a3b8", fontSize: 14, fontWeight: "500" },
 });

@@ -3,13 +3,13 @@ import {
   View,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   Animated,
   ScrollView,
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "../theme/ThemeContext";
 import { useGameBoard } from "../hooks/useGameBoard";
 import { useTimer } from "../hooks/useTimer";
@@ -24,9 +24,11 @@ import GameWonDialog from "../components/GameWonDialog";
 import GameLostDialog from "../components/GameLostDialog";
 
 // Margin between squares, keyed by column count
-const SQUARE_MARGIN = { 3: 8, 4: 7, 5: 5, 6: 4 };
+const SQUARE_MARGIN = { 3: 10, 4: 8, 5: 6, 6: 5 };
 // Max board size in logical pixels
 const MAX_BOARD_SIZE = 480;
+const BOARD_BORDER_WIDTH = 4;
+const BOARD_PADDING = 8;
 
 const AnimatedSquare = React.memo(function AnimatedSquare({
   item,
@@ -37,14 +39,65 @@ const AnimatedSquare = React.memo(function AnimatedSquare({
   onPress,
 }) {
   const colorAnim = useRef(new Animated.Value(item.isClicked ? 1 : 0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const prevClickedRef = useRef(item.isClicked);
 
   useEffect(() => {
     Animated.timing(colorAnim, {
       toValue: item.isClicked ? 1 : 0,
-      duration: 450,
+      duration: item.isClicked ? 300 : 450,
       useNativeDriver: false,
     }).start();
   }, [item.isClicked, colorAnim]);
+
+  useEffect(() => {
+    const becameClicked = !prevClickedRef.current && item.isClicked;
+
+    // Only pop on real player taps (not preview show/hide transitions)
+    if (becameClicked && !itemsNotClickable) {
+      Animated.sequence([
+        Animated.spring(scaleAnim, {
+          toValue: 1.15,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 3,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 5,
+        }),
+      ]).start();
+    } else if (!item.isClicked) {
+      scaleAnim.setValue(1);
+    }
+
+    prevClickedRef.current = item.isClicked;
+  }, [item.isClicked, itemsNotClickable, scaleAnim]);
+
+  // Glow effect for valid squares during preview
+  useEffect(() => {
+    if (item.isValid && !itemsNotClickable) {
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0.3,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ]),
+      );
+      loop.start();
+      return () => loop.stop();
+    }
+  }, [item.isValid, itemsNotClickable]);
 
   const activeColor = item.isValid ? colors.squareCorrect : colors.squareWrong;
   const backgroundColor = colorAnim.interpolate({
@@ -52,13 +105,48 @@ const AnimatedSquare = React.memo(function AnimatedSquare({
     outputRange: [colors.squareDefault, activeColor],
   });
 
+  const glowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.6],
+  });
+
   return (
     <TouchableOpacity
-      activeOpacity={itemsNotClickable ? 1 : 0.7}
+      activeOpacity={itemsNotClickable ? 1 : 0.85}
       onPress={onPress}
       style={{ width: squareSize, height: squareSize, margin }}
     >
-      <Animated.View style={[styles.square, { backgroundColor }]} />
+      <Animated.View
+        style={[
+          styles.square,
+          {
+            backgroundColor,
+            transform: [{ scale: scaleAnim }],
+            shadowColor: item.isClicked
+              ? item.isValid
+                ? "#60a5fa"
+                : "#f87171"
+              : "#34d399",
+            shadowOpacity: item.isClicked ? 0.5 : 0.3,
+            shadowOffset: { width: 0, height: 4 },
+            shadowRadius: 8,
+            elevation: item.isClicked ? 8 : 4,
+          },
+        ]}
+      >
+        {/* Glow overlay for valid squares */}
+        {item.isValid && !itemsNotClickable && (
+          <Animated.View
+            style={[
+              styles.glowOverlay,
+              {
+                opacity: glowOpacity,
+                backgroundColor: colors.squareGlow || "rgba(99, 102, 241, 0.4)",
+              },
+            ]}
+          />
+        )}
+      </Animated.View>
     </TouchableOpacity>
   );
 });
@@ -103,6 +191,25 @@ export default function GameScreen({ navigation }) {
 
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const previewTimerRef = useRef(null);
+  const boardScaleAnim = useRef(new Animated.Value(0.9)).current;
+  const boardOpacityAnim = useRef(new Animated.Value(0)).current;
+
+  // Animate board entrance
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(boardScaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 8,
+      }),
+      Animated.timing(boardOpacityAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   // Animate board rotation
   useEffect(() => {
@@ -240,8 +347,9 @@ export default function GameScreen({ navigation }) {
   };
 
   // Compute square size from board size, column count, and margins
-  const margin = SQUARE_MARGIN[columns] ?? 4;
-  const squareSize = (BOARD_SIZE - margin * 2 * columns) / columns;
+  const margin = SQUARE_MARGIN[columns] ?? 5;
+  const usableBoardSize = BOARD_SIZE - (BOARD_BORDER_WIDTH + BOARD_PADDING) * 2;
+  const squareSize = (usableBoardSize - margin * 2 * columns) / columns;
 
   // Phone: stack vertically (ResultsBox above board, StatusBox below)
   // Tablet/desktop: ResultsBox left, board centre, StatusBox right
@@ -255,7 +363,9 @@ export default function GameScreen({ navigation }) {
           width: BOARD_SIZE,
           height: BOARD_SIZE,
           backgroundColor: colors.boardBackground,
-          transform: [{ rotate: boardRotation }],
+          transform: [{ rotate: boardRotation }, { scale: boardScaleAnim }],
+          opacity: boardOpacityAnim,
+          borderColor: colors.boardBorder,
         },
       ]}
     >
@@ -274,7 +384,14 @@ export default function GameScreen({ navigation }) {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.gradientStart }]}>
+    <View style={styles.screen}>
+      <LinearGradient
+        colors={[colors.gradientStart, colors.gradientEnd]}
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+
       <SafeAreaView style={styles.safeArea}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -341,6 +458,7 @@ export default function GameScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  gradient: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   safeArea: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
@@ -374,10 +492,25 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     alignContent: "center",
     justifyContent: "center",
-    borderRadius: 4,
+    borderRadius: 20,
+    borderWidth: BOARD_BORDER_WIDTH,
+    padding: BOARD_PADDING,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 24,
+    elevation: 10,
   },
   square: {
     flex: 1,
-    borderRadius: 4,
+    borderRadius: 10,
+  },
+  glowOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 10,
   },
 });

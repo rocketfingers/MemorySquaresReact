@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Animated } from "react-native";
 import { timeConstants } from "../constants/gameConstants";
 
 /**
@@ -36,7 +36,7 @@ export default function StatusBox({
         <View style={styles.tilesRow}>
           <StatTile
             icon="⏱"
-            label="Round Time"
+            label="Time"
             value={
               <Text style={[styles.tileValue, timeIsRed && styles.valueRed]}>
                 {currentTime}
@@ -45,10 +45,11 @@ export default function StatusBox({
                 </Text>
               </Text>
             }
+            highlight
           />
           <StatTile icon="📊" label="Progress" value={`${pct}%`} />
-          <StatTile icon="🎲" label="Round" value={round} />
-          <StatTile icon="🕐" label="Total Time" value={`${totalTime}s`} />
+          <StatTile icon="🎲" label="Round" value={round} highlight />
+          <StatTile icon="🕐" label="Total" value={`${totalTime}s`} />
         </View>
       </View>
     );
@@ -58,7 +59,9 @@ export default function StatusBox({
     return (
       <View style={styles.card}>
         <View style={styles.header}>
-          <Text style={styles.headerIcon}>🏁</Text>
+          <View style={styles.headerIconWrap}>
+            <Text style={styles.headerIcon}>🏁</Text>
+          </View>
           <Text style={styles.headerTitle}>Current Game</Text>
         </View>
 
@@ -67,9 +70,16 @@ export default function StatusBox({
           label="Round Time"
           value={`${currentTime}/${timeConstants.MAX_ALLOWED_TIME}s`}
           valueStyle={timeIsRed && styles.valueRed}
+          progress={currentTime / timeConstants.MAX_ALLOWED_TIME}
+          warning={timeIsRed}
         />
-        <StatRow icon="📊" label="Progress" value={`${pct}%`} />
-        <StatRow icon="🎲" label="Round" value={round} />
+        <StatRow
+          icon="📊"
+          label="Progress"
+          value={`${pct}%`}
+          progress={pct / 100}
+        />
+        <StatRow icon="🎲" label="Round" value={round} highlight />
         <StatRow icon="🕐" label="Total Time" value={`${totalTime}s`} />
       </View>
     );
@@ -78,13 +88,15 @@ export default function StatusBox({
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.headerIcon}>🏁</Text>
+        <View style={styles.headerIconWrap}>
+          <Text style={styles.headerIcon}>🏁</Text>
+        </View>
         <Text style={styles.headerTitle}>Current Game</Text>
       </View>
 
       <View style={styles.row}>
         {/* Round time */}
-        <View style={styles.tile}>
+        <View style={[styles.tile, styles.tileHighlight]}>
           <Text style={styles.tileIcon}>⏱</Text>
           <Text style={styles.tileLabel}>Round Time</Text>
           <Text style={[styles.tileValue, timeIsRed && styles.valueRed]}>
@@ -104,7 +116,7 @@ export default function StatusBox({
         </View>
 
         {/* Round number */}
-        <View style={styles.roundTile}>
+        <View style={[styles.tile, styles.tileHighlight]}>
           <Text style={styles.tileIcon}>🎲</Text>
           <Text style={styles.tileLabel}>Round</Text>
           <Text style={styles.roundValue}>{round}</Text>
@@ -121,29 +133,54 @@ export default function StatusBox({
   );
 }
 
-function StatTile({ icon, label, value, valueStyle }) {
+function StatTile({ icon, label, value, valueStyle, highlight }) {
   return (
-    <View style={styles.tile}>
-      <Text style={styles.tileIcon}>{icon}</Text>
-      <Text style={styles.tileLabel}>{label}</Text>
+    <View style={[styles.tileCompact, highlight && styles.tileHighlight]}>
+      <Text style={styles.tileIconSmall}>{icon}</Text>
+      <Text style={styles.tileLabelSmall}>{label}</Text>
       {React.isValidElement(value) ? (
         value
       ) : (
-        <Text style={[styles.tileValue, valueStyle]}>{value}</Text>
+        <Text style={[styles.tileValueSmall, valueStyle]}>{value}</Text>
       )}
     </View>
   );
 }
 
-function StatRow({ icon, label, value, valueStyle }) {
+function StatRow({
+  icon,
+  label,
+  value,
+  valueStyle,
+  progress,
+  warning,
+  highlight,
+}) {
   return (
-    <View style={styles.statItem}>
-      <View style={styles.iconWrap}>
+    <View style={[styles.statItem, highlight && styles.statItemHighlight]}>
+      <View
+        style={[
+          styles.iconWrap,
+          warning && styles.iconWrapWarning,
+          highlight && styles.iconWrapHighlight,
+        ]}
+      >
         <Text style={styles.statIcon}>{icon}</Text>
       </View>
       <View style={styles.statContent}>
         <Text style={styles.statLabel}>{label}</Text>
         <Text style={[styles.statValue, valueStyle]}>{value}</Text>
+        {progress !== undefined && (
+          <View style={styles.progressBarBg}>
+            <View
+              style={[
+                styles.progressBarFill,
+                { width: `${Math.min(progress * 100, 100)}%` },
+                warning && styles.progressBarWarning,
+              ]}
+            />
+          </View>
+        )}
       </View>
     </View>
   );
@@ -151,22 +188,42 @@ function StatRow({ icon, label, value, valueStyle }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 20,
-    padding: 14,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 24,
+    padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "rgba(255,255,255,0.18)",
+    backdropFilter: "blur(10px)",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 5,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
-    paddingBottom: 10,
+    marginBottom: 14,
+    paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.2)",
+    borderBottomColor: "rgba(255,255,255,0.15)",
   },
-  headerIcon: { fontSize: 20, marginRight: 8 },
-  headerTitle: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  headerIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  headerIcon: { fontSize: 18 },
+  headerTitle: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
 
   // Horizontal layout (default)
   row: {
@@ -179,77 +236,124 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
     minWidth: 60,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 12,
-    padding: 8,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 16,
+    padding: 10,
   },
-  tileIcon: { fontSize: 18, marginBottom: 2 },
+  tileHighlight: {
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+  tileIcon: { fontSize: 20, marginBottom: 4 },
+  tileIconSmall: { fontSize: 16, marginBottom: 2 },
   tileLabel: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: 10,
-    fontWeight: "500",
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 9,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  tileLabelSmall: {
+    color: "rgba(255,255,255,0.65)",
+    fontSize: 8,
+    fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 2,
   },
-  tileValue: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  tileMax: { color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: "400" },
-  valueRed: { color: "#ff6b6b" },
+  tileValue: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  tileValueSmall: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  tileMax: { color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: "400" },
+  valueRed: { color: "#f87171" },
 
   progressTile: { alignItems: "center", flex: 1, minWidth: 60 },
   progressCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(255,255,255,0.15)",
     borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.6)",
+    borderColor: "rgba(255,255,255,0.5)",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  progressPct: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  progressPct: { color: "#fff", fontSize: 13, fontWeight: "700" },
 
   roundTile: {
     alignItems: "center",
     flex: 1,
     minWidth: 60,
     backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 12,
-    padding: 8,
+    borderRadius: 16,
+    padding: 10,
   },
-  roundValue: { color: "#fff", fontSize: 24, fontWeight: "700" },
+  roundValue: { color: "#fff", fontSize: 26, fontWeight: "700" },
 
   // Vertical layout (stacked rows)
   statItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+  },
+  statItemHighlight: {
+    backgroundColor: "rgba(255,255,255,0.12)",
   },
   iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.15)",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: 14,
+  },
+  iconWrapWarning: {
+    backgroundColor: "rgba(248, 113, 113, 0.25)",
+  },
+  iconWrapHighlight: {
+    backgroundColor: "rgba(99, 102, 241, 0.25)",
   },
   statIcon: { fontSize: 22 },
   statContent: { flex: 1 },
   statLabel: {
-    color: "rgba(255,255,255,0.8)",
+    color: "rgba(255,255,255,0.7)",
     fontSize: 11,
-    fontWeight: "500",
+    fontWeight: "600",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 2,
+    letterSpacing: 0.6,
+    marginBottom: 4,
   },
-  statValue: { color: "#fff", fontSize: 26, fontWeight: "700" },
+  statValue: { color: "#fff", fontSize: 24, fontWeight: "700" },
+
+  // Progress bar
+  progressBarBg: {
+    height: 4,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 2,
+    marginTop: 8,
+    overflow: "hidden",
+  },
+  progressBarFill: {
+    height: "100%",
+    backgroundColor: "rgba(52, 211, 153, 0.8)",
+    borderRadius: 2,
+  },
+  progressBarWarning: {
+    backgroundColor: "rgba(248, 113, 113, 0.8)",
+  },
 
   // Tile row (used for compact mode)
-  tilesRow: { flexDirection: "row", justifyContent: "space-between", gap: 6 },
+  tilesRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
+  tileCompact: {
+    alignItems: "center",
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 14,
+    padding: 10,
+    minWidth: 70,
+  },
 });
