@@ -3,7 +3,7 @@
 ## Context
 
 - Port remaining functionality from [`MemorySquares` (Vue/Quasar)](../MemorySquares) to [`MemorySquaresReact`](.).
-- Supabase schema work is explicitly deferred to a later phase.
+- Supabase schema work is now implemented in-project via migration files.
 
 ## Completed
 
@@ -65,8 +65,8 @@
 - [ ] Adjust workflow commands for this Expo/React Native project (pnpm scripts, lint/test/build as applicable)
 - [ ] Validate workflow file syntax and trigger conditions
 
-## Deferred (Supabase Phase)
+## Supabase Phase (Completed)
 
-- [ ] Add `public.delete_user` RPC (or equivalent secure backend path) used by delete-account flow
-- [ ] Apply schema + RLS via MCP/CLI once connection details are provided
-- [ ] Add migration files to repo and document rollout/rollback
+- [x] Add `public.delete_user` RPC (or equivalent secure backend path) used by delete-account flow
+- [x] Apply schema + RLS via MCP/CLI once connection details are provided
+- [x] Add migration files to repo and document rollout/rollback
