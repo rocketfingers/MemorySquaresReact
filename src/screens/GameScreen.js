@@ -392,9 +392,59 @@ export default function GameScreen({ navigation }) {
     }, [refreshHistory]),
   );
 
+  const quitToMenu = useCallback(async () => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+    if (swapTimerRef.current) {
+      clearTimeout(swapTimerRef.current);
+      swapTimerRef.current = null;
+    }
+
+    const shouldRecordLoss = isBoardShown && !wonDialog && !lostDialog;
+
+    setGameInProgress(false);
+    setIsSwapping(false);
+    setSwapCountLabel(0);
+
+    if (shouldRecordLoss) {
+      await addGameToHistory(
+        currentRound,
+        currentGameTime,
+        totalGameTime,
+        gameResults.LOSE,
+      );
+    }
+
+    setIsBoardShown(false);
+    setWonDialog(false);
+    setLostDialog(false);
+    navigation.navigate("Home");
+  }, [
+    addGameToHistory,
+    currentRound,
+    currentGameTime,
+    isBoardShown,
+    lostDialog,
+    navigation,
+    totalGameTime,
+    wonDialog,
+  ]);
+
   const handleExitToMenuPress = useCallback(() => {
     if (!isBoardShown && !gameInProgress) {
       navigation.navigate("Home");
+      return;
+    }
+
+    if (Platform.OS === "web" && typeof globalThis.confirm === "function") {
+      const confirmed = globalThis.confirm(
+        "Your current game will be counted as a loss. Are you sure?",
+      );
+      if (confirmed) {
+        void quitToMenu();
+      }
       return;
     }
 
@@ -406,49 +456,13 @@ export default function GameScreen({ navigation }) {
         {
           text: "Quit Game",
           style: "destructive",
-          onPress: async () => {
-            if (previewTimerRef.current) {
-              clearTimeout(previewTimerRef.current);
-              previewTimerRef.current = null;
-            }
-            if (swapTimerRef.current) {
-              clearTimeout(swapTimerRef.current);
-              swapTimerRef.current = null;
-            }
-
-            const shouldRecordLoss = isBoardShown && !wonDialog && !lostDialog;
-
-            setGameInProgress(false);
-            setIsSwapping(false);
-            setSwapCountLabel(0);
-            if (shouldRecordLoss) {
-              await addGameToHistory(
-                currentRound,
-                currentGameTime,
-                totalGameTime,
-                gameResults.LOSE,
-              );
-            }
-
-            setIsBoardShown(false);
-            setWonDialog(false);
-            setLostDialog(false);
-            navigation.navigate("Home");
+          onPress: () => {
+            void quitToMenu();
           },
         },
       ],
     );
-  }, [
-    addGameToHistory,
-    currentRound,
-    currentGameTime,
-    gameInProgress,
-    isBoardShown,
-    lostDialog,
-    navigation,
-    totalGameTime,
-    wonDialog,
-  ]);
+  }, [gameInProgress, isBoardShown, navigation, quitToMenu]);
 
   useFocusEffect(
     useCallback(() => {
