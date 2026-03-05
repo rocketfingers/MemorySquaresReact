@@ -38,7 +38,8 @@ const BOARD_BORDER_WIDTH = 4;
 const BOARD_PADDING = 8;
 const SWAP_ANIMATION_DURATION = 1000;
 
-const getColumnsForRound = (round) => levelsConfiguration[round - 1]?.columns ?? 6;
+const getColumnsForRound = (round) =>
+  levelsConfiguration[round - 1]?.columns ?? 6;
 
 const shouldSwapOnRound = (round) => {
   if (round < 6) return false;
@@ -407,20 +408,24 @@ export default function GameScreen({ navigation }) {
     setGameInProgress(false);
     setIsSwapping(false);
     setSwapCountLabel(0);
-
-    if (shouldRecordLoss) {
-      await addGameToHistory(
-        currentRound,
-        currentGameTime,
-        totalGameTime,
-        gameResults.LOSE,
-      );
-    }
-
     setIsBoardShown(false);
     setWonDialog(false);
     setLostDialog(false);
-    navigation.navigate("Home");
+
+    try {
+      if (shouldRecordLoss) {
+        await addGameToHistory(
+          currentRound,
+          currentGameTime,
+          totalGameTime,
+          gameResults.LOSE,
+        );
+      }
+    } catch (error) {
+      console.warn("Failed to save game result before leaving to menu", error);
+    } finally {
+      navigation.navigate("Home");
+    }
   }, [
     addGameToHistory,
     currentRound,
@@ -575,7 +580,8 @@ export default function GameScreen({ navigation }) {
           <View style={styles.swapOverlay} pointerEvents="none" />
           <View style={styles.swapBanner} pointerEvents="none">
             <Text style={styles.swapBannerText}>
-              🔀 {swapCountLabel} swap{swapCountLabel === 1 ? "" : "s"} in motion!
+              🔀 {swapCountLabel} swap{swapCountLabel === 1 ? "" : "s"} in
+              motion!
             </Text>
           </View>
         </>
