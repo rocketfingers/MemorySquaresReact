@@ -19,10 +19,16 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#667eea"
-      }
+      },
+      "package": "com.siwecki.memorysquares"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a6f61a50-2ff7-4849-a504-8f777b6541fd"
+      }
     }
   }
 }
