@@ -33,7 +33,7 @@ const SQUARE_MARGIN = { 3: 10, 4: 8, 5: 6, 6: 5 };
 const MAX_BOARD_SIZE = 480;
 const BOARD_BORDER_WIDTH = 4;
 const BOARD_PADDING = 8;
-const SWAP_ANIMATION_DURATION = 1000;
+const SWAP_ANIMATION_DURATION = 2000;
 const SWAP_PREP_DURATION = 250;
 
 const getColumnsForRound = (round) =>
@@ -322,51 +322,85 @@ export default function GameScreen({ navigation }) {
     swapMotionsRef.current = {};
   }, []);
 
-  const buildSwapPairs = useCallback((totalSquares, wantedSwaps) => {
-    if (totalSquares < 2 || wantedSwaps <= 0) return [];
+  const buildSwapPairs = useCallback(
+    (activeRectangles, wantedSwaps, cols, minDistance = 1) => {
+      if (!Array.isArray(activeRectangles) || activeRectangles.length < 2 || wantedSwaps <= 0) {
+        return [];
+      }
 
-    const pairs = [];
-    const usedIndexes = new Set();
-    const maxSwaps = Math.min(wantedSwaps, Math.floor(totalSquares / 2));
+      const validIndexes = [];
+      const invalidIndexes = [];
 
-    for (let i = 0; i < maxSwaps; i++) {
-      let first = -1;
-      let second = -1;
-      let guard = 0;
+      activeRectangles.forEach((tile, index) => {
+        if (tile.isValid) validIndexes.push(index);
+        else invalidIndexes.push(index);
+      });
 
-      while (guard < 60 && first === -1) {
-        const candidate = Math.floor(Math.random() * totalSquares);
-        if (!usedIndexes.has(candidate)) {
-          first = candidate;
+      if (!validIndexes.length || !invalidIndexes.length) return [];
+
+      const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+      const usedIndexes = new Set();
+      const maxSwaps = Math.min(
+        wantedSwaps,
+        validIndexes.length,
+        invalidIndexes.length,
+      );
+      const pairs = [];
+
+      for (let i = 0; i < maxSwaps; i++) {
+        let validIndex = -1;
+        let invalidIndex = -1;
+        let guard = 0;
+
+        while (guard < 120 && (validIndex === -1 || invalidIndex === -1)) {
+          const maybeValid = pickRandom(validIndexes);
+          const maybeInvalid = pickRandom(invalidIndexes);
+
+          if (
+            usedIndexes.has(maybeValid) ||
+            usedIndexes.has(maybeInvalid) ||
+            maybeValid === maybeInvalid
+          ) {
+            guard += 1;
+            continue;
+          }
+
+          const validRow = Math.floor(maybeValid / cols);
+          const validCol = maybeValid % cols;
+          const invalidRow = Math.floor(maybeInvalid / cols);
+          const invalidCol = maybeInvalid % cols;
+          const distance =
+            Math.abs(validRow - invalidRow) + Math.abs(validCol - invalidCol);
+
+          if (distance < minDistance) {
+            guard += 1;
+            continue;
+          }
+
+          validIndex = maybeValid;
+          invalidIndex = maybeInvalid;
         }
-        guard += 1;
-      }
 
-      guard = 0;
-      while (guard < 60 && second === -1) {
-        const candidate = Math.floor(Math.random() * totalSquares);
-        if (candidate !== first && !usedIndexes.has(candidate)) {
-          second = candidate;
+        if (validIndex !== -1 && invalidIndex !== -1) {
+          usedIndexes.add(validIndex);
+          usedIndexes.add(invalidIndex);
+          pairs.push([validIndex, invalidIndex]);
         }
-        guard += 1;
       }
 
-      if (first !== -1 && second !== -1) {
-        usedIndexes.add(first);
-        usedIndexes.add(second);
-        pairs.push([first, second]);
-      }
-    }
-
-    return pairs;
-  }, []);
+      return pairs;
+    },
+    [],
+  );
 
   const runVisibleSwap = useCallback(
     (round, onComplete) => {
       const activeRectangles = rectanglesRef.current;
+      const cols = getColumnsForRound(round);
       const pairs = buildSwapPairs(
-        activeRectangles.length,
+        activeRectangles,
         getSwapCountForRound(round),
+        cols,
       );
 
       if (!pairs.length) {
@@ -374,7 +408,6 @@ export default function GameScreen({ navigation }) {
         return;
       }
 
-      const cols = getColumnsForRound(round);
       const marginForCols = SQUARE_MARGIN[cols] ?? 5;
       const usableBoardSize = BOARD_SIZE - (BOARD_BORDER_WIDTH + BOARD_PADDING) * 2;
       const swapSquareSize =
