@@ -7,7 +7,6 @@ import {
   Animated,
   ScrollView,
   useWindowDimensions,
-  Alert,
   BackHandler,
   LayoutAnimation,
   Platform,
@@ -29,6 +28,7 @@ import StatusBox from "../components/StatusBox";
 import ResultsBox from "../components/ResultsBox";
 import GameWonDialog from "../components/GameWonDialog";
 import GameLostDialog from "../components/GameLostDialog";
+import ActionDialog from "../components/ActionDialog";
 
 // Margin between squares, keyed by column count
 const SQUARE_MARGIN = { 3: 10, 4: 8, 5: 6, 6: 5 };
@@ -220,6 +220,7 @@ export default function GameScreen({ navigation }) {
   const [isBoardRotated, setIsBoardRotated] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
   const [swapCountLabel, setSwapCountLabel] = useState(0);
+  const [dialogState, setDialogState] = useState(null);
 
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const previewTimerRef = useRef(null);
@@ -443,30 +444,19 @@ export default function GameScreen({ navigation }) {
       return;
     }
 
-    if (Platform.OS === "web" && typeof globalThis.confirm === "function") {
-      const confirmed = globalThis.confirm(
-        "Your current game will be counted as a loss. Are you sure?",
-      );
-      if (confirmed) {
+    setDialogState({
+      title: "Return to Menu?",
+      message: "Your current game will be counted as a loss. Are you sure?",
+      confirmText: "Quit Game",
+      cancelText: "Keep Playing",
+      showCancel: true,
+      destructive: true,
+      onConfirm: () => {
+        setDialogState(null);
         void quitToMenu();
-      }
-      return;
-    }
-
-    Alert.alert(
-      "Return to Menu?",
-      "Your current game will be counted as a loss. Are you sure?",
-      [
-        { text: "Keep Playing", style: "cancel" },
-        {
-          text: "Quit Game",
-          style: "destructive",
-          onPress: () => {
-            void quitToMenu();
-          },
-        },
-      ],
-    );
+      },
+      onCancel: () => setDialogState(null),
+    });
   }, [gameInProgress, isBoardShown, navigation, quitToMenu]);
 
   useFocusEffect(
@@ -667,6 +657,18 @@ export default function GameScreen({ navigation }) {
         onNextLevel={handleNextLevel}
         onRestart={handleRestart}
         onGoToMenu={handleGoToMenu}
+      />
+
+      <ActionDialog
+        visible={Boolean(dialogState)}
+        title={dialogState?.title || ""}
+        message={dialogState?.message || ""}
+        confirmText={dialogState?.confirmText || "OK"}
+        cancelText={dialogState?.cancelText || "Cancel"}
+        showCancel={dialogState?.showCancel ?? true}
+        destructive={dialogState?.destructive ?? false}
+        onConfirm={dialogState?.onConfirm || (() => setDialogState(null))}
+        onCancel={dialogState?.onCancel || (() => setDialogState(null))}
       />
     </View>
   );

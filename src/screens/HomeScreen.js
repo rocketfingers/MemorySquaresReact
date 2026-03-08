@@ -7,7 +7,6 @@ import {
   Animated,
   Modal,
   TextInput,
-  Alert,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -19,6 +18,7 @@ import { useTheme } from "../theme/ThemeContext";
 import { useGameStatusStore } from "../stores/gameStatusStore";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useAuth } from "../hooks/useAuth";
+import ActionDialog from "../components/ActionDialog";
 
 const { width, height } = Dimensions.get("window");
 
@@ -339,6 +339,7 @@ export default function HomeScreen({ navigation }) {
   const [showResume, setShowResume] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [authActionInProgress, setAuthActionInProgress] = useState(false);
+  const [dialogState, setDialogState] = useState(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -371,10 +372,12 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     if (gameInProgress) {
       setGameInProgress(false);
-      Alert.alert(
-        "Game Ended",
-        "You exited mid-game. It has been counted as a loss.",
-      );
+      setDialogState({
+        title: "Game Ended",
+        message: "You exited mid-game. It has been counted as a loss.",
+        confirmText: "Got it",
+        showCancel: false,
+      });
     }
     setIsBoardShown(false);
   }, []);
@@ -384,18 +387,21 @@ export default function HomeScreen({ navigation }) {
     hasCheckedLoginPrompt.current = true;
 
     if (!user && !dontShowLoginPromptAgain) {
-      Alert.alert(
-        "Sync your progress",
-        "Sign in to sync your game history across devices.",
-        [
-          { text: "Sign In", onPress: () => setShowAuth(true) },
-          {
-            text: "Dismiss",
-            style: "cancel",
-            onPress: () => setDontShowLoginPromptAgain(true),
-          },
-        ],
-      );
+      setDialogState({
+        title: "Sync your progress",
+        message: "Sign in to sync your game history across devices.",
+        confirmText: "Sign In",
+        cancelText: "Dismiss",
+        showCancel: true,
+        onConfirm: () => {
+          setDialogState(null);
+          setShowAuth(true);
+        },
+        onCancel: () => {
+          setDialogState(null);
+          setDontShowLoginPromptAgain(true);
+        },
+      });
     }
   }, [loading, user, dontShowLoginPromptAgain, setDontShowLoginPromptAgain]);
 
@@ -457,12 +463,22 @@ export default function HomeScreen({ navigation }) {
     setAuthActionInProgress(false);
 
     if (!ok) {
-      Alert.alert("Sign Out Failed", "Please try again in a moment.");
+      setDialogState({
+        title: "Sign Out Failed",
+        message: "Please try again in a moment.",
+        confirmText: "OK",
+        showCancel: false,
+      });
       return;
     }
 
     cleanupAfterAccountAction();
-    Alert.alert("Signed Out", "You have been signed out successfully.");
+    setDialogState({
+      title: "Signed Out",
+      message: "You have been signed out successfully.",
+      confirmText: "OK",
+      showCancel: false,
+    });
   };
 
   const performDeleteAccount = async () => {
@@ -471,73 +487,75 @@ export default function HomeScreen({ navigation }) {
     setAuthActionInProgress(false);
 
     if (!result.ok) {
-      Alert.alert("Delete Failed", result.error);
+      setDialogState({
+        title: "Delete Failed",
+        message: result.error,
+        confirmText: "OK",
+        showCancel: false,
+      });
       return;
     }
 
     cleanupAfterAccountAction();
-    Alert.alert("Account Deleted", "Your account has been deleted.");
+    setDialogState({
+      title: "Account Deleted",
+      message: "Your account has been deleted.",
+      confirmText: "OK",
+      showCancel: false,
+    });
   };
 
   const handleSignOutPress = () => {
     if (isBoardShown) {
-      Alert.alert("Action unavailable", "You cannot sign out during the game.");
+      setDialogState({
+        title: "Action unavailable",
+        message: "You cannot sign out during the game.",
+        confirmText: "OK",
+        showCancel: false,
+      });
       return;
     }
 
-    if (Platform.OS === "web" && typeof globalThis.confirm === "function") {
-      const confirmed = globalThis.confirm("Are you sure you want to sign out?");
-      if (confirmed) {
+    setDialogState({
+      title: "Sign Out",
+      message: "Are you sure you want to sign out?",
+      confirmText: "Sign Out",
+      cancelText: "Cancel",
+      showCancel: true,
+      destructive: true,
+      onConfirm: () => {
+        setDialogState(null);
         void performSignOut();
-      }
-      return;
-    }
-
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: () => {
-          void performSignOut();
-        },
       },
-    ]);
+      onCancel: () => setDialogState(null),
+    });
   };
 
   const handleDeleteAccountPress = () => {
     if (isBoardShown) {
-      Alert.alert(
-        "Action unavailable",
-        "You cannot delete your account during the game.",
-      );
+      setDialogState({
+        title: "Action unavailable",
+        message: "You cannot delete your account during the game.",
+        confirmText: "OK",
+        showCancel: false,
+      });
       return;
     }
 
-    if (Platform.OS === "web" && typeof globalThis.confirm === "function") {
-      const confirmed = globalThis.confirm(
+    setDialogState({
+      title: "Delete Account",
+      message:
         "Are you sure you want to permanently delete your account? This action cannot be undone.",
-      );
-      if (confirmed) {
+      confirmText: "Delete Forever",
+      cancelText: "Cancel",
+      showCancel: true,
+      destructive: true,
+      onConfirm: () => {
+        setDialogState(null);
         void performDeleteAccount();
-      }
-      return;
-    }
-
-    Alert.alert(
-      "Delete Account",
-      "Are you sure you want to permanently delete your account? This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete Forever",
-          style: "destructive",
-          onPress: () => {
-            void performDeleteAccount();
-          },
-        },
-      ],
-    );
+      },
+      onCancel: () => setDialogState(null),
+    });
   };
 
   return (
@@ -761,6 +779,18 @@ export default function HomeScreen({ navigation }) {
         onClose={() => setShowAuth(false)}
         onAuthSuccess={handleAuthSuccess}
         colors={colors}
+      />
+
+      <ActionDialog
+        visible={Boolean(dialogState)}
+        title={dialogState?.title || ""}
+        message={dialogState?.message || ""}
+        confirmText={dialogState?.confirmText || "OK"}
+        cancelText={dialogState?.cancelText || "Cancel"}
+        showCancel={dialogState?.showCancel ?? true}
+        destructive={dialogState?.destructive ?? false}
+        onConfirm={dialogState?.onConfirm || (() => setDialogState(null))}
+        onCancel={dialogState?.onCancel || (() => setDialogState(null))}
       />
     </View>
   );

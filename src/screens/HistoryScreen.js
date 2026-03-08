@@ -5,9 +5,7 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Animated,
-  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -16,6 +14,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useHistory } from "../hooks/useHistory";
 import { useGameStatusStore } from "../stores/gameStatusStore";
 import { gameResults } from "../constants/gameResult";
+import ActionDialog from "../components/ActionDialog";
 
 const PAGE_SIZE = 7;
 
@@ -40,6 +39,7 @@ export default function HistoryScreen({ navigation }) {
   const { history, clearGameHistory } = useHistory(user);
   const resetGame = useGameStatusStore((s) => s.resetGame);
   const [page, setPage] = useState(1);
+  const [dialogState, setDialogState] = useState(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -69,30 +69,19 @@ export default function HistoryScreen({ navigation }) {
       await clearGameHistory();
     };
 
-    if (Platform.OS === "web" && typeof globalThis.confirm === "function") {
-      const confirmed = globalThis.confirm(
-        "Are you sure you want to wipe all your records? This cannot be undone.",
-      );
-      if (confirmed) {
+    setDialogState({
+      title: "Clear History",
+      message: "Are you sure you want to wipe all your records? This cannot be undone.",
+      confirmText: "Clear All",
+      cancelText: "Keep",
+      showCancel: true,
+      destructive: true,
+      onConfirm: () => {
+        setDialogState(null);
         void performClear();
-      }
-      return;
-    }
-
-    Alert.alert(
-      "Clear History",
-      "Are you sure you want to wipe all your records? This cannot be undone.",
-      [
-        { text: "Keep", style: "cancel" },
-        {
-          text: "Clear All",
-          style: "destructive",
-          onPress: () => {
-            void performClear();
-          },
-        },
-      ],
-    );
+      },
+      onCancel: () => setDialogState(null),
+    });
   };
 
   const renderRow = ({ item, index }) => {
@@ -276,6 +265,18 @@ export default function HistoryScreen({ navigation }) {
           )}
         </Animated.View>
       </SafeAreaView>
+
+      <ActionDialog
+        visible={Boolean(dialogState)}
+        title={dialogState?.title || ""}
+        message={dialogState?.message || ""}
+        confirmText={dialogState?.confirmText || "OK"}
+        cancelText={dialogState?.cancelText || "Cancel"}
+        showCancel={dialogState?.showCancel ?? true}
+        destructive={dialogState?.destructive ?? false}
+        onConfirm={dialogState?.onConfirm || (() => setDialogState(null))}
+        onCancel={dialogState?.onCancel || (() => setDialogState(null))}
+      />
     </View>
   );
 }
