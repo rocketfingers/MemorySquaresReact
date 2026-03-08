@@ -8,9 +8,6 @@ import {
   ScrollView,
   useWindowDimensions,
   BackHandler,
-  LayoutAnimation,
-  Platform,
-  UIManager,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
@@ -37,6 +34,7 @@ const MAX_BOARD_SIZE = 480;
 const BOARD_BORDER_WIDTH = 4;
 const BOARD_PADDING = 8;
 const SWAP_ANIMATION_DURATION = 1000;
+const SWAP_PREP_DURATION = 250;
 
 const getColumnsForRound = (round) =>
   levelsConfiguration[round - 1]?.columns ?? 6;
@@ -63,6 +61,9 @@ const AnimatedSquare = React.memo(function AnimatedSquare({
   margin,
   colors,
   itemsNotClickable,
+  swapMotion,
+  swapBadge,
+  isSwapping,
   onPress,
 }) {
   const colorAnim = useRef(new Animated.Value(item.isClicked ? 1 : 0)).current;
@@ -148,7 +149,11 @@ const AnimatedSquare = React.memo(function AnimatedSquare({
           styles.square,
           {
             backgroundColor,
-            transform: [{ scale: scaleAnim }],
+            transform: [
+              { translateX: swapMotion?.x || 0 },
+              { translateY: swapMotion?.y || 0 },
+              { scale: scaleAnim },
+            ],
             shadowColor: item.isClicked
               ? item.isValid
                 ? "#60a5fa"
@@ -161,6 +166,12 @@ const AnimatedSquare = React.memo(function AnimatedSquare({
           },
         ]}
       >
+        {isSwapping && swapBadge ? (
+          <View style={styles.swapTileBadge}>
+            <Text style={styles.swapTileBadgeText}>{swapBadge}</Text>
+          </View>
+        ) : null}
+
         {/* Glow overlay for valid squares */}
         {item.isValid && !itemsNotClickable && (
           <Animated.View
@@ -211,7 +222,7 @@ export default function GameScreen({ navigation }) {
     handleItemClick,
     disableClicking,
     enableClicking,
-    swapRandomSquares,
+    swapSquaresByIndexPairs,
   } = useGameBoard();
 
   const [lostDialog, setLostDialog] = useState(false);
@@ -220,22 +231,20 @@ export default function GameScreen({ navigation }) {
   const [isBoardRotated, setIsBoardRotated] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
   const [swapCountLabel, setSwapCountLabel] = useState(0);
+  const [swapBadgesById, setSwapBadgesById] = useState({});
   const [dialogState, setDialogState] = useState(null);
 
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const previewTimerRef = useRef(null);
   const swapTimerRef = useRef(null);
+  const swapMotionsRef = useRef({});
+  const rectanglesRef = useRef(rectangles);
   const boardScaleAnim = useRef(new Animated.Value(0.9)).current;
   const boardOpacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (
-      Platform.OS === "android" &&
-      UIManager.setLayoutAnimationEnabledExperimental
-    ) {
-      UIManager.setLayoutAnimationEnabledExperimental(true);
-    }
-  }, []);
+    rectanglesRef.current = rectangles;
+  }, [rectangles]);
 
   // Animate board entrance
   useEffect(() => {
@@ -306,6 +315,140 @@ export default function GameScreen({ navigation }) {
     }
   }, [currentGameTime, gameInProgress, handleTimeout, isBoardShown]);
 
+  const clearSwapVisualState = useCallback(() => {
+    setIsSwapping(false);
+    setSwapCountLabel(0);
+    setSwapBadgesById({});
+    swapMotionsRef.current = {};
+  }, []);
+
+  const buildSwapPairs = useCallback((totalSquares, wantedSwaps) => {
+    if (totalSquares < 2 || wantedSwaps <= 0) return [];
+
+    const pairs = [];
+    const usedIndexes = new Set();
+    const maxSwaps = Math.min(wantedSwaps, Math.floor(totalSquares / 2));
+
+    for (let i = 0; i < maxSwaps; i++) {
+      let first = -1;
+      let second = -1;
+      let guard = 0;
+
+      while (guard < 60 && first === -1) {
+        const candidate = Math.floor(Math.random() * totalSquares);
+        if (!usedIndexes.has(candidate)) {
+          first = candidate;
+        }
+        guard += 1;
+      }
+
+      guard = 0;
+      while (guard < 60 && second === -1) {
+        const candidate = Math.floor(Math.random() * totalSquares);
+        if (candidate !== first && !usedIndexes.has(candidate)) {
+          second = candidate;
+        }
+        guard += 1;
+      }
+
+      if (first !== -1 && second !== -1) {
+        usedIndexes.add(first);
+        usedIndexes.add(second);
+        pairs.push([first, second]);
+      }
+    }
+
+    return pairs;
+  }, []);
+
+  const runVisibleSwap = useCallback(
+    (round, onComplete) => {
+      const activeRectangles = rectanglesRef.current;
+      const pairs = buildSwapPairs(
+        activeRectangles.length,
+        getSwapCountForRound(round),
+      );
+
+      if (!pairs.length) {
+        onComplete();
+        return;
+      }
+
+      const cols = getColumnsForRound(round);
+      const marginForCols = SQUARE_MARGIN[cols] ?? 5;
+      const usableBoardSize = BOARD_SIZE - (BOARD_BORDER_WIDTH + BOARD_PADDING) * 2;
+      const swapSquareSize =
+        (usableBoardSize - marginForCols * 2 * cols) / cols;
+      const cellSize = swapSquareSize + marginForCols * 2;
+
+      const motions = {};
+      const badges = {};
+      const animations = [];
+
+      pairs.forEach((pair, pairIndex) => {
+        const [firstIndex, secondIndex] = pair;
+        const firstItem = activeRectangles[firstIndex];
+        const secondItem = activeRectangles[secondIndex];
+        if (!firstItem || !secondItem) return;
+
+        const firstRow = Math.floor(firstIndex / cols);
+        const firstCol = firstIndex % cols;
+        const secondRow = Math.floor(secondIndex / cols);
+        const secondCol = secondIndex % cols;
+
+        const firstDx = (secondCol - firstCol) * cellSize;
+        const firstDy = (secondRow - firstRow) * cellSize;
+        const secondDx = (firstCol - secondCol) * cellSize;
+        const secondDy = (firstRow - secondRow) * cellSize;
+
+        const firstMotion = new Animated.ValueXY({ x: 0, y: 0 });
+        const secondMotion = new Animated.ValueXY({ x: 0, y: 0 });
+
+        motions[firstItem.id] = firstMotion;
+        motions[secondItem.id] = secondMotion;
+        badges[firstItem.id] = String(pairIndex + 1);
+        badges[secondItem.id] = String(pairIndex + 1);
+
+        animations.push(
+          Animated.timing(firstMotion, {
+            toValue: { x: firstDx, y: firstDy },
+            duration: SWAP_ANIMATION_DURATION,
+            useNativeDriver: true,
+          }),
+        );
+        animations.push(
+          Animated.timing(secondMotion, {
+            toValue: { x: secondDx, y: secondDy },
+            duration: SWAP_ANIMATION_DURATION,
+            useNativeDriver: true,
+          }),
+        );
+      });
+
+      if (!animations.length) {
+        onComplete();
+        return;
+      }
+
+      setIsSwapping(true);
+      setSwapCountLabel(pairs.length);
+      setSwapBadgesById(badges);
+      swapMotionsRef.current = motions;
+
+      if (swapTimerRef.current) clearTimeout(swapTimerRef.current);
+      swapTimerRef.current = setTimeout(() => {
+        Animated.parallel(animations).start(() => {
+          swapSquaresByIndexPairs(pairs);
+          swapTimerRef.current = setTimeout(() => {
+            clearSwapVisualState();
+            onComplete();
+          }, 20);
+        });
+      }, SWAP_PREP_DURATION);
+    },
+    [BOARD_SIZE, buildSwapPairs, clearSwapVisualState, swapSquaresByIndexPairs],
+  );
+
   const startGame = useCallback(() => {
     const startPlayPhase = () => {
       setAnyGameEverStarted(true);
@@ -315,8 +458,7 @@ export default function GameScreen({ navigation }) {
 
     setTypeLost(null);
     setIsBoardRotated(false);
-    setIsSwapping(false);
-    setSwapCountLabel(0);
+    clearSwapVisualState();
     setIsBoardShown(true);
     setGameInProgress(false);
     setCurrentGameTime(0);
@@ -334,30 +476,7 @@ export default function GameScreen({ navigation }) {
       disableClicking();
 
       if (shouldSwapOnRound(currentRound)) {
-        const swapCount = getSwapCountForRound(currentRound);
-        setIsSwapping(true);
-        setSwapCountLabel(swapCount);
-        LayoutAnimation.configureNext({
-          duration: SWAP_ANIMATION_DURATION,
-          create: {
-            type: LayoutAnimation.Types.easeInEaseOut,
-            property: LayoutAnimation.Properties.opacity,
-          },
-          update: {
-            type: LayoutAnimation.Types.easeInEaseOut,
-          },
-          delete: {
-            type: LayoutAnimation.Types.easeInEaseOut,
-            property: LayoutAnimation.Properties.opacity,
-          },
-        });
-
-        swapRandomSquares(swapCount);
-        swapTimerRef.current = setTimeout(() => {
-          setIsSwapping(false);
-          setSwapCountLabel(0);
-          startPlayPhase();
-        }, SWAP_ANIMATION_DURATION);
+        runVisibleSwap(currentRound, startPlayPhase);
       } else {
         startPlayPhase();
       }
@@ -374,8 +493,9 @@ export default function GameScreen({ navigation }) {
     setAnyGameEverStarted,
     disableClicking,
     enableClicking,
-    swapRandomSquares,
     shouldRotate,
+    runVisibleSwap,
+    clearSwapVisualState,
   ]);
 
   // Start game on mount
@@ -384,8 +504,9 @@ export default function GameScreen({ navigation }) {
     return () => {
       if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
       if (swapTimerRef.current) clearTimeout(swapTimerRef.current);
+      clearSwapVisualState();
     };
-  }, []);
+  }, [clearSwapVisualState]);
 
   // Keep history-driven stats in sync after returning from History screen.
   useFocusEffect(
@@ -407,11 +528,11 @@ export default function GameScreen({ navigation }) {
     const shouldRecordLoss = isBoardShown && !wonDialog && !lostDialog;
 
     setGameInProgress(false);
-    setIsSwapping(false);
-    setSwapCountLabel(0);
+    clearSwapVisualState();
     setIsBoardShown(false);
     setWonDialog(false);
     setLostDialog(false);
+    setDialogState(null);
 
     try {
       if (shouldRecordLoss) {
@@ -436,6 +557,7 @@ export default function GameScreen({ navigation }) {
     navigation,
     totalGameTime,
     wonDialog,
+    clearSwapVisualState,
   ]);
 
   const handleExitToMenuPress = useCallback(() => {
@@ -524,6 +646,7 @@ export default function GameScreen({ navigation }) {
   const handleGoToMenu = () => {
     setWonDialog(false);
     setLostDialog(false);
+    clearSwapVisualState();
     setIsBoardShown(false);
     navigation.navigate("Home");
   };
@@ -560,6 +683,9 @@ export default function GameScreen({ navigation }) {
             margin={margin}
             colors={colors}
             itemsNotClickable={itemsNotClickable}
+            swapMotion={swapMotionsRef.current[item.id]}
+            swapBadge={swapBadgesById[item.id]}
+            isSwapping={isSwapping}
             onPress={() => handleSquareTap(item.id)}
           />
         ))}
@@ -769,6 +895,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
     letterSpacing: 0.2,
+  },
+  swapTileBadge: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(250, 204, 21, 0.98)",
+    borderWidth: 2,
+    borderColor: "#92400e",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  swapTileBadgeText: {
+    color: "#7c2d12",
+    fontSize: 12,
+    fontWeight: "900",
   },
   square: {
     flex: 1,

@@ -146,6 +146,41 @@ export function useGameBoard() {
     });
   }, []);
 
+  const swapSquaresByIndexPairs = useCallback((pairs = []) => {
+    if (!Array.isArray(pairs) || pairs.length === 0) return;
+
+    setRectangles((prev) => {
+      if (prev.length < 2) return prev;
+
+      const next = [...prev];
+
+      for (const pair of pairs) {
+        if (!Array.isArray(pair) || pair.length !== 2) continue;
+
+        const first = pair[0];
+        const second = pair[1];
+
+        if (
+          !Number.isInteger(first) ||
+          !Number.isInteger(second) ||
+          first < 0 ||
+          second < 0 ||
+          first >= next.length ||
+          second >= next.length ||
+          first === second
+        ) {
+          continue;
+        }
+
+        const temp = next[first];
+        next[first] = next[second];
+        next[second] = temp;
+      }
+
+      return next;
+    });
+  }, []);
+
   return {
     columns,
     rectangles,
@@ -163,5 +198,6 @@ export function useGameBoard() {
     disableClicking,
     enableClicking,
     swapRandomSquares,
+    swapSquaresByIndexPairs,
   };
 }
