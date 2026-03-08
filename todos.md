@@ -10,6 +10,7 @@
 - [x] Audit parity between [`../MemorySquares`](../MemorySquares) and [`.`](.)
 - [x] Extract Supabase schema requirements from the source app
 - [x] Configure Supabase MCP client in [`opencode.json`](opencode.json)
+- [x] Add Google login support in [`src/hooks/useAuth.js`](src/hooks/useAuth.js), [`src/screens/HomeScreen.js`](src/screens/HomeScreen.js), [`app.json`](app.json), and [`package.json`](package.json)
 
 ## Next Actions (Implementation Phase)
 

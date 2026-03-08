@@ -152,7 +152,7 @@ function GlowEffect({ children }) {
 
 // Auth modal (sign-in / sign-up) with enhanced design
 function AuthModal({ visible, onClose, onAuthSuccess, colors }) {
-  const { signIn, signUp, error } = useAuth();
+  const { signIn, signUp, signInWithGoogle, error } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -182,6 +182,17 @@ function AuthModal({ visible, onClose, onAuthSuccess, colors }) {
     if (ok) {
       setEmail("");
       setPassword("");
+      onAuthSuccess?.();
+      onClose();
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setSubmitting(true);
+    const ok = await signInWithGoogle();
+    setSubmitting(false);
+
+    if (ok) {
       onAuthSuccess?.();
       onClose();
     }
@@ -262,6 +273,25 @@ function AuthModal({ visible, onClose, onAuthSuccess, colors }) {
                   : isSignUp
                     ? "🚀 Create Account"
                     : "✓ Sign In"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.primaryBtn,
+                {
+                  backgroundColor: "#ffffff",
+                  marginTop: 10,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={handleGoogleSignIn}
+              disabled={submitting}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.primaryBtnText, { color: "#111827" }]}>
+                {submitting ? "⏳ Please wait..." : "🔐 Continue with Google"}
               </Text>
             </TouchableOpacity>
 
@@ -379,7 +409,14 @@ export default function HomeScreen({ navigation }) {
       setIsBoardShown(false);
       setLastProgressOwner(owner);
     }
-  }, [loading, user?.id, lastProgressOwner, resetGame, setIsBoardShown, setLastProgressOwner]);
+  }, [
+    loading,
+    user?.id,
+    lastProgressOwner,
+    resetGame,
+    setIsBoardShown,
+    setLastProgressOwner,
+  ]);
 
   const handleStartPress = () => {
     if (currentRound > 1) {
@@ -416,10 +453,7 @@ export default function HomeScreen({ navigation }) {
 
   const handleSignOutPress = () => {
     if (isBoardShown) {
-      Alert.alert(
-        "Action unavailable",
-        "You cannot sign out during the game.",
-      );
+      Alert.alert("Action unavailable", "You cannot sign out during the game.");
       return;
     }
 
@@ -578,7 +612,10 @@ export default function HomeScreen({ navigation }) {
             {user ? (
               <View style={styles.accountActions}>
                 <TouchableOpacity
-                  style={[styles.authRow, accountActionsDisabled && styles.actionDisabled]}
+                  style={[
+                    styles.authRow,
+                    accountActionsDisabled && styles.actionDisabled,
+                  ]}
                   onPress={handleSignOutPress}
                   activeOpacity={0.7}
                   disabled={accountActionsDisabled}
@@ -599,7 +636,9 @@ export default function HomeScreen({ navigation }) {
                   activeOpacity={0.7}
                   disabled={accountActionsDisabled}
                 >
-                  <Text style={styles.deleteAccountText}>🗑 Delete account</Text>
+                  <Text style={styles.deleteAccountText}>
+                    🗑 Delete account
+                  </Text>
                 </TouchableOpacity>
 
                 {isBoardShown && (
