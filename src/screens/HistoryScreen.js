@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Alert,
   Animated,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -63,6 +64,21 @@ export default function HistoryScreen({ navigation }) {
   const pageData = history.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const handleClear = () => {
+    const performClear = async () => {
+      resetGame();
+      await clearGameHistory();
+    };
+
+    if (Platform.OS === "web" && typeof globalThis.confirm === "function") {
+      const confirmed = globalThis.confirm(
+        "Are you sure you want to wipe all your records? This cannot be undone.",
+      );
+      if (confirmed) {
+        void performClear();
+      }
+      return;
+    }
+
     Alert.alert(
       "Clear History",
       "Are you sure you want to wipe all your records? This cannot be undone.",
@@ -71,9 +87,8 @@ export default function HistoryScreen({ navigation }) {
         {
           text: "Clear All",
           style: "destructive",
-          onPress: async () => {
-            resetGame();
-            await clearGameHistory();
+          onPress: () => {
+            void performClear();
           },
         },
       ],
@@ -82,23 +97,32 @@ export default function HistoryScreen({ navigation }) {
 
   const renderRow = ({ item, index }) => {
     const isWin = item.result === gameResults.WIN;
+    const evenRowBackground = colors.surface;
+    const oddRowBackground =
+      colors.card === colors.surface ? "rgba(99, 102, 241, 0.06)" : colors.card;
+
     return (
       <Animated.View
         style={[
           styles.row,
           {
             backgroundColor:
-              index % 2 === 0
-                ? "rgba(255,255,255,0.95)"
-                : "rgba(255,255,255,0.85)",
+              index % 2 === 0 ? evenRowBackground : oddRowBackground,
             opacity: fadeAnim,
           },
         ]}
       >
-        <Text style={[styles.cell, styles.cellRound, { color: colors.text }]}>
+        <Text
+          style={[
+            styles.cell,
+            styles.cellRound,
+            styles.valueCell,
+            { color: colors.text },
+          ]}
+        >
           {item.round}
         </Text>
-        <Text style={[styles.cell, { color: colors.text }]}>
+        <Text style={[styles.cell, styles.valueCell, { color: colors.text }]}>
           {item.time ?? item.gameTime ?? "-"}s
         </Text>
         <View style={styles.cell}>
@@ -310,6 +334,7 @@ const styles = StyleSheet.create({
   },
   cell: { flex: 1, fontSize: 14 },
   cellRound: { flex: 0.6, fontWeight: "600" },
+  valueCell: { fontWeight: "600", color: "#1f2937" },
   cellDate: { flex: 1.8, fontSize: 12 },
 
   badge: {

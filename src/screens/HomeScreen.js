@@ -451,9 +451,45 @@ export default function HomeScreen({ navigation }) {
 
   const accountActionsDisabled = authActionInProgress || isBoardShown;
 
+  const performSignOut = async () => {
+    setAuthActionInProgress(true);
+    const ok = await signOut();
+    setAuthActionInProgress(false);
+
+    if (!ok) {
+      Alert.alert("Sign Out Failed", "Please try again in a moment.");
+      return;
+    }
+
+    cleanupAfterAccountAction();
+    Alert.alert("Signed Out", "You have been signed out successfully.");
+  };
+
+  const performDeleteAccount = async () => {
+    setAuthActionInProgress(true);
+    const result = await deleteAccount();
+    setAuthActionInProgress(false);
+
+    if (!result.ok) {
+      Alert.alert("Delete Failed", result.error);
+      return;
+    }
+
+    cleanupAfterAccountAction();
+    Alert.alert("Account Deleted", "Your account has been deleted.");
+  };
+
   const handleSignOutPress = () => {
     if (isBoardShown) {
       Alert.alert("Action unavailable", "You cannot sign out during the game.");
+      return;
+    }
+
+    if (Platform.OS === "web" && typeof globalThis.confirm === "function") {
+      const confirmed = globalThis.confirm("Are you sure you want to sign out?");
+      if (confirmed) {
+        void performSignOut();
+      }
       return;
     }
 
@@ -462,18 +498,8 @@ export default function HomeScreen({ navigation }) {
       {
         text: "Sign Out",
         style: "destructive",
-        onPress: async () => {
-          setAuthActionInProgress(true);
-          const ok = await signOut();
-          setAuthActionInProgress(false);
-
-          if (!ok) {
-            Alert.alert("Sign Out Failed", "Please try again in a moment.");
-            return;
-          }
-
-          cleanupAfterAccountAction();
-          Alert.alert("Signed Out", "You have been signed out successfully.");
+        onPress: () => {
+          void performSignOut();
         },
       },
     ]);
@@ -488,6 +514,16 @@ export default function HomeScreen({ navigation }) {
       return;
     }
 
+    if (Platform.OS === "web" && typeof globalThis.confirm === "function") {
+      const confirmed = globalThis.confirm(
+        "Are you sure you want to permanently delete your account? This action cannot be undone.",
+      );
+      if (confirmed) {
+        void performDeleteAccount();
+      }
+      return;
+    }
+
     Alert.alert(
       "Delete Account",
       "Are you sure you want to permanently delete your account? This action cannot be undone.",
@@ -496,18 +532,8 @@ export default function HomeScreen({ navigation }) {
         {
           text: "Delete Forever",
           style: "destructive",
-          onPress: async () => {
-            setAuthActionInProgress(true);
-            const result = await deleteAccount();
-            setAuthActionInProgress(false);
-
-            if (!result.ok) {
-              Alert.alert("Delete Failed", result.error);
-              return;
-            }
-
-            cleanupAfterAccountAction();
-            Alert.alert("Account Deleted", "Your account has been deleted.");
+          onPress: () => {
+            void performDeleteAccount();
           },
         },
       ],
